@@ -537,7 +537,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           </div>
           
           <div className="flex items-center gap-4 text-xs text-slate-500">
-             <span>© 2026 TJPA - Fundo de Apoio ao Registro Civil By fpf.info</span>
+             {/* Footer Info removed to avoid duplication with global footer */}
           </div>
         </div>
       </div>
