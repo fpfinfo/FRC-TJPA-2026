@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Payment, Notary } from '../types';
-import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy, AlertOctagon, Clock } from 'lucide-react';
+import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy, AlertOctagon, Clock, ArrowUpDown } from 'lucide-react';
 import { formatCurrency, formatDate, generateId } from '../utils';
 import NewPaymentModal from './NewPaymentModal';
 import StatusAuditModal from './StatusAuditModal';
@@ -30,23 +30,46 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
   const [paymentToAudit, setPaymentToAudit] = useState<Payment | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   
-  // Advanced Filter States
-  const [searchGlobal, setSearchGlobal] = useState('');
-  const [filterMonth, setFilterMonth] = useState('');
-  const [filterComarca, setFilterComarca] = useState('');
-  const [filterCartorio, setFilterCartorio] = useState('');
-  const [filterHistory, setFilterHistory] = useState('');
-  const [filterCpf, setFilterCpf] = useState('');
-  
+  // Advanced Filter States (UI - Buffered)
+  const [filters, setFilters] = useState({
+    searchGlobal: '',
+    month: '',
+    year: '',
+    comarca: '',
+    notary: '',
+    history: '',
+    cpf: '',
+    dateStart: '',
+    dateEnd: '',
+    valueMin: '',
+    valueMax: ''
+  });
+
+  // Applied Filters (Active Logic)
+  const [appliedFilters, setAppliedFilters] = useState(filters);
+
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: keyof Payment; direction: 'asc' | 'desc' } | null>(null);
+
   // Data for Selects
   const months = useMemo(() => Array.from(new Set(payments.map(p => p.monthReference))).sort(), [payments]);
+  const years = useMemo(() => Array.from(new Set(payments.map(p => p.yearReference))).sort(), [payments]);
   const comarcas = useMemo(() => Array.from(new Set(payments.map(p => p.comarca))).sort(), [payments]);
   const cartorios = useMemo(() => Array.from(new Set(payments.map(p => p.notaryName))).sort(), [payments]);
   const historyTypes = ['AJUDA DE CUSTO', 'DEA', 'MESES ANTERIORES', 'RENDA MINIMA', 'REPASSE', 'COMPLEMENTAÇÃO'];
 
+  // Helper to parse currency string "R$ 1.000,00" or simple "1000" to float
+  const parseValue = (val: string) => {
+    if (!val) return null;
+    return parseFloat(val.replace(/[^\d,-]/g, '').replace(',', '.'));
+  };
+
   // Filter Logic
   const filteredPayments = useMemo(() => {
-    return payments.filter(p => {
+    let result = payments.filter(p => {
+      const { searchGlobal, month, year, comarca, notary, history, cpf, dateStart, dateEnd, valueMin, valueMax } = appliedFilters;
+
+      // Global Search
       const globalLower = searchGlobal.toLowerCase();
       const matchesGlobal = 
         !searchGlobal || 
@@ -54,23 +77,75 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         p.comarca.toLowerCase().includes(globalLower) ||
         p.responsibleName.toLowerCase().includes(globalLower);
 
-      const matchesMonth = !filterMonth || p.monthReference === filterMonth;
-      const matchesComarca = !filterComarca || p.comarca === filterComarca;
-      const matchesCartorio = !filterCartorio || p.notaryName === filterCartorio;
-      const matchesHistory = !filterHistory || p.historyType === filterHistory;
-      const matchesCpf = !filterCpf || p.cpf.includes(filterCpf);
+      // Extract Matches
+      const matchesMonth = !month || p.monthReference === month;
+      const matchesYear = !year || p.yearReference.toString() === year;
+      const matchesComarca = !comarca || p.comarca === comarca;
+      const matchesNotary = !notary || p.notaryName === notary;
+      const matchesHistory = !history || p.historyType === history;
+      const matchesCpf = !cpf || p.cpf.includes(cpf);
+      
+      // Wrapper for existing date string YYYY-MM-DD
+      const matchesDateStart = !dateStart || p.date >= dateStart;
+      const matchesDateEnd = !dateEnd || p.date <= dateEnd;
+      
+      const minVal = parseValue(valueMin);
+      const maxVal = parseValue(valueMax);
+      
+      const matchesMinVal = minVal === null || p.netValue >= minVal;
+      const matchesMaxVal = maxVal === null || p.netValue <= maxVal;
 
-      return matchesGlobal && matchesMonth && matchesComarca && matchesCartorio && matchesHistory && matchesCpf;
+      return matchesGlobal && matchesMonth && matchesYear && matchesComarca && matchesNotary && 
+             matchesHistory && matchesCpf && matchesDateStart && matchesDateEnd && matchesMinVal && matchesMaxVal;
     });
-  }, [payments, searchGlobal, filterMonth, filterComarca, filterCartorio, filterHistory, filterCpf]);
+
+    if (sortConfig !== null) {
+      result.sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return result;
+  }, [payments, appliedFilters, sortConfig]);
+
+  const requestSort = (key: keyof Payment) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters(filters);
+  };
 
   const clearFilters = () => {
-    setSearchGlobal('');
-    setFilterMonth('');
-    setFilterComarca('');
-    setFilterCartorio('');
-    setFilterHistory('');
-    setFilterCpf('');
+    const emptyFilters = {
+      searchGlobal: '',
+      month: '',
+      year: '',
+      comarca: '',
+      notary: '',
+      history: '',
+      cpf: '',
+      dateStart: '',
+      dateEnd: '',
+      valueMin: '',
+      valueMax: ''
+    };
+    setFilters(emptyFilters);
+    setAppliedFilters(emptyFilters);
+  };
+  
+  const handleFilterChange = (key: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   // --- DUPLICATE FUNCTIONALITY ---
@@ -336,38 +411,51 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Row 1 */}
-          <div className="md:col-span-6">
+          {/* Row 1 */}
+          {/* Row 1 */}
+          <div className="md:col-span-5">
             <label className="block text-xs font-medium text-slate-500 mb-1">Pesquisa Global</label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
               <input 
                 type="text" 
-                value={searchGlobal}
-                onChange={(e) => setSearchGlobal(e.target.value)}
+                value={filters.searchGlobal}
+                onChange={(e) => handleFilterChange('searchGlobal', e.target.value)}
                 placeholder="Buscar por nome, cartório, comarca..." 
                 className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
               />
             </div>
           </div>
-          <div className="md:col-span-3">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Mês</label>
+          <div className="md:col-span-2">
+             <label className="block text-xs font-medium text-slate-500 mb-1">Ano</label>
              <select 
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              value={filters.year}
+              onChange={(e) => handleFilterChange('year', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
             >
-              <option value="">Todos os meses</option>
+              <option value="">Todos</option>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+             <label className="block text-xs font-medium text-slate-500 mb-1">Mês</label>
+             <select 
+              value={filters.month}
+              onChange={(e) => handleFilterChange('month', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
+            >
+              <option value="">Todos</option>
               {months.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
            <div className="md:col-span-3">
              <label className="block text-xs font-medium text-slate-500 mb-1">Comarca</label>
              <select 
-              value={filterComarca}
-              onChange={(e) => setFilterComarca(e.target.value)}
+              value={filters.comarca}
+              onChange={(e) => handleFilterChange('comarca', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
             >
-              <option value="">Todas as comarcas</option>
+              <option value="">Todas</option>
               {comarcas.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -376,8 +464,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           <div className="md:col-span-4">
              <label className="block text-xs font-medium text-slate-500 mb-1">Cartório</label>
              <select 
-              value={filterCartorio}
-              onChange={(e) => setFilterCartorio(e.target.value)}
+              value={filters.notary}
+              onChange={(e) => handleFilterChange('notary', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
             >
               <option value="">Todos os cartórios</option>
@@ -387,8 +475,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           <div className="md:col-span-4">
              <label className="block text-xs font-medium text-slate-500 mb-1">Histórico (múltipla seleção)</label>
              <select 
-              value={filterHistory}
-              onChange={(e) => setFilterHistory(e.target.value)}
+              value={filters.history}
+              onChange={(e) => handleFilterChange('history', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
             >
               <option value="">Todos os tipos</option>
@@ -399,8 +487,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
             <label className="block text-xs font-medium text-slate-500 mb-1">CPF</label>
             <input 
                 type="text" 
-                value={filterCpf}
-                onChange={(e) => setFilterCpf(e.target.value)}
+                value={filters.cpf}
+                onChange={(e) => handleFilterChange('cpf', e.target.value)}
                 placeholder="000.000.000-00" 
                 className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
               />
@@ -409,19 +497,41 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           {/* Row 3 - Dates and Buttons */}
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Data Inicial</label>
-            <input type="date" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" />
+            <input 
+              type="date" 
+              value={filters.dateStart}
+              onChange={(e) => handleFilterChange('dateStart', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" 
+            />
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Data Final</label>
-            <input type="date" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" />
+            <input 
+              type="date" 
+              value={filters.dateEnd}
+              onChange={(e) => handleFilterChange('dateEnd', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" 
+            />
           </div>
            <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Valor Mínimo</label>
-            <input type="text" placeholder="R$ 0,00" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" />
+            <input 
+              type="text" 
+              value={filters.valueMin}
+              onChange={(e) => handleFilterChange('valueMin', e.target.value)}
+              placeholder="R$ 0,00" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" 
+            />
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs font-medium text-slate-500 mb-1">Valor Máximo</label>
-            <input type="text" placeholder="R$ 999.999,99" className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" />
+            <input 
+              type="text" 
+              value={filters.valueMax}
+              onChange={(e) => handleFilterChange('valueMax', e.target.value)}
+              placeholder="R$ 999.999,99" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" 
+            />
           </div>
           
           <div className="md:col-span-4 flex items-end justify-end gap-2">
@@ -431,7 +541,10 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
              >
                <X size={16} /> Limpar Todos
              </button>
-             <button className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition">
+             <button 
+              onClick={handleApplyFilters}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition"
+             >
                Aplicar Filtros
              </button>
           </div>
@@ -450,18 +563,31 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Mês</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Responsável</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">CPF</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Cartório</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Cód</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Comarca</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider text-right">Valor Repassado</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider text-right">IRRF</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider text-right">Valor Líquido</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Histórico</th>
-                <th className="px-4 py-3 text-xs uppercase tracking-wider">Pagamento</th>
+                {[
+                  { key: 'status', label: 'Status' },
+                  { key: 'monthReference', label: 'Mês' },
+                  { key: 'responsibleName', label: 'Responsável' },
+                  { key: 'cpf', label: 'CPF' },
+                  { key: 'notaryName', label: 'Cartório' },
+                  { key: 'code', label: 'Cód' },
+                  { key: 'comarca', label: 'Comarca' },
+                  { key: 'grossValue', label: 'Valor Repassado', align: 'right' },
+                  { key: 'irrfValue', label: 'IRRF', align: 'right' },
+                  { key: 'netValue', label: 'Valor Líquido', align: 'right' },
+                  { key: 'historyType', label: 'Histórico' },
+                  { key: 'date', label: 'Pagamento' },
+                ].map((col) => (
+                  <th 
+                    key={col.key}
+                    onClick={() => requestSort(col.key as keyof Payment)}
+                    className={`px-4 py-3 text-xs uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition select-none group ${col.align === 'right' ? 'text-right' : ''}`}
+                  >
+                    <div className={`flex items-center gap-1 ${col.align === 'right' ? 'justify-end' : ''}`}>
+                      {col.label}
+                      <ArrowUpDown size={12} className={`opacity-0 group-hover:opacity-50 transition ${sortConfig?.key === col.key ? 'text-blue-500 opacity-100' : ''}`} />
+                    </div>
+                  </th>
+                ))}
                 <th className="px-4 py-3 text-xs uppercase tracking-wider text-center print:hidden">Ações</th>
               </tr>
             </thead>
