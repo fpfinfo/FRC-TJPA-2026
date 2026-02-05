@@ -132,7 +132,8 @@ const InnerApp = () => {
         irrfValue: p.irrf_value,
         netValue: p.net_value,
         historyType: p.history_type,
-        status: p.status
+        status: p.status,
+        pendingReason: p.pending_reason
       }));
       setPayments(mappedPayments);
 
@@ -147,6 +148,7 @@ const InnerApp = () => {
 
   const handleAddPayment = async (newPayment: Payment) => {
     try {
+      // Optimistic update
       setPayments([newPayment, ...payments]);
       const dbPayment = {
         notary_id: newPayment.notaryId,
@@ -175,6 +177,32 @@ const InnerApp = () => {
     } catch (error) {
       console.error("Error saving payment:", error);
       addToast('Erro ao salvar pagamento.', 'error');
+      fetchData(); // Revert
+    }
+  };
+
+  const handleUpdatePaymentStatus = async (id: string, status: Payment['status'], reason?: string) => {
+    try {
+      // Optimistic Update
+      setPayments(prev => prev.map(p => 
+        p.id === id ? { ...p, status: status, pendingReason: reason } : p
+      ));
+
+      const updatePayload: any = { status };
+      updatePayload.pending_reason = status === 'PENDENTE' ? reason : null;
+
+      const { error } = await supabase
+        .from('payments')
+        .update(updatePayload)
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      addToast('Status atualizado com sucesso!', 'success');
+    } catch (error) {
+      console.error("Error updating status:", error);
+      addToast('Erro ao atualizar status.', 'error');
+      fetchData(); // Revert
     }
   };
 
@@ -194,7 +222,9 @@ const InnerApp = () => {
         state: newNotary.state,
         cep: newNotary.cep,
         phone: newNotary.phone,
-        email: newNotary.email
+        email: newNotary.email,
+        latitude: newNotary.latitude,
+        longitude: newNotary.longitude
       };
 
       const { data, error } = await supabase.from('notaries').insert(dbNotary).select().single();
@@ -207,6 +237,7 @@ const InnerApp = () => {
     } catch (error) {
        console.error("Error saving notary:", error);
        addToast('Erro ao cadastrar cartório.', 'error');
+       fetchData(); // Revert on error
     }
   };
 
@@ -226,7 +257,9 @@ const InnerApp = () => {
         state: updatedNotary.state,
         cep: updatedNotary.cep,
         phone: updatedNotary.phone,
-        email: updatedNotary.email
+        email: updatedNotary.email,
+        latitude: updatedNotary.latitude,
+        longitude: updatedNotary.longitude
       };
 
       const { error } = await supabase.from('notaries').update(dbNotary).eq('id', updatedNotary.id);
@@ -374,7 +407,14 @@ const InnerApp = () => {
         <main className="flex-1 overflow-auto bg-slate-50 p-6 print:p-0 print:bg-white print:overflow-visible custom-scrollbar">
           <div className="max-w-[1600px] mx-auto print:max-w-none print:mx-0">
             {currentView === 'dashboard' && <Dashboard payments={payments} notaries={notaries} />}
-            {currentView === 'payments' && <PaymentTable payments={payments} notaries={notaries} onAddPayment={handleAddPayment} />}
+            {currentView === 'payments' && (
+              <PaymentTable 
+                payments={payments} 
+                notaries={notaries} 
+                onAddPayment={handleAddPayment} 
+                onUpdatePaymentStatus={handleUpdatePaymentStatus}
+              />
+            )}
             {currentView === 'cedulac' && <CedulaCReport payments={payments} notaries={notaries} />}
             {currentView === 'settings' && isAdmin && (
               <NotarySettings 

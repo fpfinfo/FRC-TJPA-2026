@@ -1,3 +1,4 @@
+
 export interface Payment {
   id: string;
   notaryId: string;
@@ -13,7 +14,8 @@ export interface Payment {
   irrfValue: number;
   netValue: number;
   historyType: 'AJUDA DE CUSTO' | 'DEA' | 'MESES ANTERIORES' | 'RENDA MINIMA' | 'REPASSE' | 'COMPLEMENTAÇÃO';
-  status: 'PAGO' | 'PENDENTE' | 'PROCESSANDO';
+  status: 'PAGO' | 'PENDENTE' | 'EM ANDAMENTO';
+  pendingReason?: string; // Motivo da pendência (obrigatório se status for PENDENTE)
 }
 
 export interface Notary {

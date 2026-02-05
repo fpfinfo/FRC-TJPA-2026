@@ -1,3 +1,4 @@
+
 import { IRRFBracket, Notary, Payment } from './types';
 
 // Updated to match the image provided: 2025 Base Year values
@@ -99,7 +100,7 @@ export const MOCK_PAYMENTS: Payment[] = [
     irrfValue: 1717.00,
     netValue: 8352.00,
     historyType: 'REPASSE',
-    status: 'PAGO'
+    status: 'EM ANDAMENTO'
   },
   {
     id: '103',
@@ -116,6 +117,7 @@ export const MOCK_PAYMENTS: Payment[] = [
     irrfValue: 0.00,
     netValue: 1975.00,
     historyType: 'REPASSE',
-    status: 'PAGO'
+    status: 'PENDENTE',
+    pendingReason: 'Divergência no valor bruto informado.'
   }
 ];

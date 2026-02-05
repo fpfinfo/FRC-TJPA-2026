@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Payment, Notary } from '../types';
-import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy } from 'lucide-react';
+import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy, AlertOctagon, Clock } from 'lucide-react';
 import { formatCurrency, formatDate, generateId } from '../utils';
 import NewPaymentModal from './NewPaymentModal';
+import StatusAuditModal from './StatusAuditModal';
+import { useToast } from './ui/ToastContext';
 
 // Declare html2pdf for TypeScript
 declare var html2pdf: any;
@@ -11,9 +13,11 @@ interface PaymentTableProps {
   payments: Payment[];
   notaries: Notary[];
   onAddPayment: (payment: Payment) => void;
+  onUpdatePaymentStatus: (id: string, status: Payment['status'], reason?: string) => void;
 }
 
-const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPayment }) => {
+const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPayment, onUpdatePaymentStatus }) => {
+  const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -21,6 +25,10 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
   
   // State for duplication
   const [paymentToDuplicate, setPaymentToDuplicate] = useState<Payment | null>(null);
+  
+  // State for Audit
+  const [paymentToAudit, setPaymentToAudit] = useState<Payment | null>(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   
   // Advanced Filter States
   const [searchGlobal, setSearchGlobal] = useState('');
@@ -71,13 +79,23 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
     setIsModalOpen(true);
   };
 
+  // --- AUDIT STATUS FUNCTIONALITY ---
+  const handleAuditClick = (payment: Payment) => {
+    setPaymentToAudit(payment);
+    setIsAuditModalOpen(true);
+  };
+
+  const handleSaveAudit = (paymentId: string, status: Payment['status'], reason?: string) => {
+    onUpdatePaymentStatus(paymentId, status, reason);
+  };
+
   // --- EXPORT CSV FUNCTIONALITY ---
   const handleExportCSV = () => {
     // Headers matching the Payment interface + display names
     const headers = [
       "ID", "Mês Ref", "Ano Ref", "Data Pagamento", "Responsável", "CPF", 
       "Cartório", "Cód", "Comarca", "Histórico", 
-      "Valor Bruto", "IRRF", "Valor Líquido", "Status"
+      "Valor Bruto", "IRRF", "Valor Líquido", "Status", "Motivo Pendência"
     ];
 
     // Map data to rows
@@ -95,7 +113,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
       p.grossValue.toFixed(2),
       p.irrfValue.toFixed(2),
       p.netValue.toFixed(2),
-      p.status
+      p.status,
+      p.status === 'PENDENTE' ? `"${p.pendingReason || ''}"` : ''
     ]);
 
     // Construct CSV String with BOM for Excel compatibility
@@ -189,7 +208,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                grossValue: parseFloat(cols[10]) || 0,
                irrfValue: parseFloat(cols[11]) || 0,
                netValue: parseFloat(cols[12]) || 0,
-               status: 'PAGO',
+               status: 'PAGO', // Importados assumem PAGO ou EM ANDAMENTO? Assumindo PAGO por histórico.
                notaryId: 'imported-' + generateId() // Placeholder logic
              };
              
@@ -211,6 +230,37 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
     reader.readAsText(file);
   };
 
+  const getStatusBadge = (status: Payment['status'], reason?: string) => {
+    switch (status) {
+      case 'PAGO':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
+            <CheckCircle size={12} /> Pago
+          </span>
+        );
+      case 'PENDENTE':
+        return (
+          <div className="flex flex-col items-start gap-1 group relative">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200 cursor-help">
+              <AlertOctagon size={12} /> Pendente
+            </span>
+            {reason && (
+              <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
+                {reason}
+              </div>
+            )}
+          </div>
+        );
+      case 'EM ANDAMENTO':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+            <Clock size={12} /> Em Andamento
+          </span>
+        );
+    }
+  };
+
   return (
     <div className="space-y-6">
       <NewPaymentModal 
@@ -219,6 +269,13 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         onSave={onAddPayment}
         paymentToDuplicate={paymentToDuplicate}
         notaries={notaries}
+      />
+
+      <StatusAuditModal 
+        isOpen={isAuditModalOpen}
+        onClose={() => { setIsAuditModalOpen(false); setPaymentToAudit(null); }}
+        onSave={handleSaveAudit}
+        payment={paymentToAudit}
       />
       
       {/* Hidden File Input for Import */}
@@ -393,6 +450,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 text-xs uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-xs uppercase tracking-wider">Mês</th>
                 <th className="px-4 py-3 text-xs uppercase tracking-wider">Responsável</th>
                 <th className="px-4 py-3 text-xs uppercase tracking-wider">CPF</th>
@@ -411,6 +469,9 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
               {filteredPayments.length > 0 ? (
                 filteredPayments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => handleAuditClick(payment)} title="Clique para auditar">
+                       {getStatusBadge(payment.status, payment.pendingReason)}
+                    </td>
                     <td className="px-4 py-3 font-medium text-slate-900">{payment.monthReference}</td>
                     <td className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={payment.responsibleName}>{payment.responsibleName}</td>
                     <td className="px-4 py-3 text-slate-600 font-mono text-xs">{payment.cpf}</td>
@@ -441,7 +502,13 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                           >
                             <Copy size={16} />
                           </button>
-                          <button className="text-slate-400 hover:text-blue-600 transition" title="Editar"><Edit2 size={16} /></button>
+                          <button 
+                            onClick={() => handleAuditClick(payment)}
+                            className="text-slate-400 hover:text-blue-600 transition" 
+                            title="Auditar/Editar Status"
+                          >
+                            <Edit2 size={16} />
+                          </button>
                           <button className="text-slate-400 hover:text-red-600 transition" title="Excluir"><Trash2 size={16} /></button>
                        </div>
                     </td>
@@ -449,7 +516,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                 ))
               ) : (
                 <tr>
-                  <td colSpan={12} className="px-6 py-12 text-center text-slate-400">
+                  <td colSpan={13} className="px-6 py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center">
                       <Search size={32} className="mb-2 opacity-50" />
                       <p>Nenhum registro encontrado.</p>

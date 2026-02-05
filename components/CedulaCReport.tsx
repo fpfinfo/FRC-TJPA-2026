@@ -11,12 +11,20 @@ interface CedulaCProps {
   notaries: Notary[];
 }
 
+// Helper interface for grouped report data
+interface GroupedReportData {
+  responsibleCpf: string;
+  responsibleName: string;
+  notaries: Notary[]; // All notaries belonging to this person
+  payments: Payment[]; // All payments for these notaries
+}
+
 // Sub-component for a single report page
-const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: number }> = ({ notary, payments, year }) => {
-  const myPayments = payments.filter(p => p.notaryId === notary.id);
-  
+const SingleReportPage: React.FC<{ data: GroupedReportData; year: number }> = ({ data, year }) => {
+  const { notaries, payments, responsibleName, responsibleCpf } = data;
+
   // Sort payments chronologically: Year -> Month -> Date
-  const sortedPayments = [...myPayments].sort((a, b) => {
+  const sortedPayments = [...payments].sort((a, b) => {
     if (a.yearReference !== b.yearReference) return a.yearReference - b.yearReference;
     const monthA = parseInt(a.monthReference) || 0;
     const monthB = parseInt(b.monthReference) || 0;
@@ -24,9 +32,15 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
     return new Date(a.date).getTime() - new Date(b.date).getTime();
   });
 
-  const totalGross = myPayments.reduce((acc, curr) => acc + curr.grossValue, 0);
-  const totalIRRF = myPayments.reduce((acc, curr) => acc + curr.irrfValue, 0);
-  const totalNet = myPayments.reduce((acc, curr) => acc + curr.netValue, 0);
+  const totalGross = payments.reduce((acc, curr) => acc + curr.grossValue, 0);
+  const totalIRRF = payments.reduce((acc, curr) => acc + curr.irrfValue, 0);
+  const totalNet = payments.reduce((acc, curr) => acc + curr.netValue, 0);
+
+  // Concatenate info if multiple notaries
+  const notaryNames = notaries.map(n => n.name).join(' / ');
+  const cnsCodes = notaries.map(n => n.ensCode).filter(Boolean).join(' / ');
+  // Unique comarcas
+  const comarcas = Array.from(new Set(notaries.map(n => n.comarca))).join(' / ');
 
   return (
     <div className="cedula-page bg-white shadow-lg mx-auto max-w-[210mm] min-h-[297mm] p-[10mm] md:p-[15mm] border border-slate-200 text-black print:shadow-none print:border-none print:w-full print:max-w-none print:min-h-0 print:p-0 print:m-0 break-after-page mb-8 last:mb-0 font-sans">
@@ -51,24 +65,26 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
         <h3 className="bg-slate-200 border border-slate-400 px-3 py-1 font-bold text-xs uppercase mb-2 text-slate-800">1. Dados do Beneficiário</h3>
         <div className="grid grid-cols-3 gap-3 border border-slate-300 p-3 text-xs">
            <div className="col-span-2">
-             <label className="block text-[10px] text-slate-500 uppercase font-bold">Nome Completo / Razão Social</label>
-             <span className="font-semibold block truncate text-slate-900">{notary.name}</span>
-           </div>
-           <div>
              <label className="block text-[10px] text-slate-500 uppercase font-bold">Responsável</label>
-             <span className="font-semibold block truncate text-slate-900">{notary.responsibleName}</span>
+             <span className="font-semibold block truncate text-slate-900">{responsibleName}</span>
            </div>
            <div>
              <label className="block text-[10px] text-slate-500 uppercase font-bold">CPF</label>
-             <span className="font-semibold block text-slate-900">{notary.responsibleCpf}</span>
+             <span className="font-semibold block text-slate-900">{responsibleCpf}</span>
+           </div>
+           
+           <div className="col-span-3 border-t border-slate-100 pt-2 mt-1">
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Cartório(s) Vinculado(s) / Razão Social</label>
+             <span className="font-semibold block text-slate-900">{notaryNames}</span>
+           </div>
+
+           <div className="col-span-2">
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Comarca(s)</label>
+             <span className="block text-slate-900">{comarcas}</span>
            </div>
            <div className="col-span-1">
              <label className="block text-[10px] text-slate-500 uppercase font-bold">Código CNS</label>
-             <span className="block text-slate-900">{notary.ensCode}</span>
-           </div>
-             <div className="col-span-1">
-             <label className="block text-[10px] text-slate-500 uppercase font-bold">Comarca</label>
-             <span className="block text-slate-900">{notary.comarca}</span>
+             <span className="block text-slate-900">{cnsCodes}</span>
            </div>
         </div>
       </div>
@@ -100,12 +116,13 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
         <table className="w-full text-xs border-collapse border border-slate-300">
           <thead>
             <tr className="bg-slate-100 text-slate-800">
-              <th className="border border-slate-300 px-2 py-2 text-center w-16 font-bold uppercase">Mês Ref.</th>
-              <th className="border border-slate-300 px-2 py-2 text-center w-24 font-bold uppercase">Data Pagto.</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-14 font-bold uppercase">Mês</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-20 font-bold uppercase">Data</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-14 font-bold uppercase" title="Código do Cartório">Cód.</th>
               <th className="border border-slate-300 px-2 py-2 text-left font-bold uppercase">Histórico / Descrição</th>
-              <th className="border border-slate-300 px-2 py-2 text-right w-28 font-bold uppercase">Rendimento Bruto</th>
-              <th className="border border-slate-300 px-2 py-2 text-right w-24 font-bold uppercase">IRRF Retido</th>
-              <th className="border border-slate-300 px-2 py-2 text-right w-28 font-bold uppercase">Rendimento Líquido</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-24 font-bold uppercase">Bruto</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-20 font-bold uppercase">IRRF</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-24 font-bold uppercase">Líquido</th>
             </tr>
           </thead>
           <tbody>
@@ -113,7 +130,8 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
               <tr key={p.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                 <td className="border border-slate-300 px-2 py-1.5 text-center font-medium text-slate-900">{p.monthReference}/{p.yearReference}</td>
                 <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-900">{formatDate(p.date)}</td>
-                <td className="border border-slate-300 px-2 py-1.5 truncate max-w-[200px] text-slate-900 uppercase text-[10px]">{p.historyType}</td>
+                <td className="border border-slate-300 px-2 py-1.5 text-center font-mono text-slate-600">{p.code}</td>
+                <td className="border border-slate-300 px-2 py-1.5 truncate max-w-[180px] text-slate-900 uppercase text-[10px]">{p.historyType}</td>
                 <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-900">{formatCurrency(p.grossValue)}</td>
                 <td className="border border-slate-300 px-2 py-1.5 text-right text-red-700">{p.irrfValue > 0 ? formatCurrency(p.irrfValue) : '-'}</td>
                 <td className="border border-slate-300 px-2 py-1.5 text-right font-bold text-slate-900">{formatCurrency(p.netValue)}</td>
@@ -121,7 +139,7 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
             ))}
             {sortedPayments.length === 0 && (
               <tr>
-                 <td colSpan={6} className="border border-slate-300 px-3 py-8 text-center text-slate-500 italic">
+                 <td colSpan={7} className="border border-slate-300 px-3 py-8 text-center text-slate-500 italic">
                     Nenhum registro encontrado para este período.
                  </td>
               </tr>
@@ -131,7 +149,7 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
           {sortedPayments.length > 0 && (
              <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-400">
                 <tr>
-                    <td colSpan={3} className="border border-slate-300 px-2 py-2 text-right uppercase text-[10px]">Totais do Período:</td>
+                    <td colSpan={4} className="border border-slate-300 px-2 py-2 text-right uppercase text-[10px]">Totais do Período:</td>
                     <td className="border border-slate-300 px-2 py-2 text-right">{formatCurrency(totalGross)}</td>
                     <td className="border border-slate-300 px-2 py-2 text-right text-red-700">{formatCurrency(totalIRRF)}</td>
                     <td className="border border-slate-300 px-2 py-2 text-right text-green-800">{formatCurrency(totalNet)}</td>
@@ -170,6 +188,37 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
     );
   }, [notaries, searchTerm]);
 
+  // Group Selected Notaries by Responsible CPF for Report Generation
+  const groupedReports = useMemo(() => {
+    // 1. Get all selected notary objects
+    const selectedList = notaries.filter(n => selectedNotaryIds.has(n.id));
+
+    // 2. Group by CPF
+    const groups: Record<string, GroupedReportData> = {};
+
+    selectedList.forEach(notary => {
+      const cpf = notary.responsibleCpf;
+      
+      if (!groups[cpf]) {
+        groups[cpf] = {
+          responsibleCpf: cpf,
+          responsibleName: notary.responsibleName,
+          notaries: [],
+          payments: []
+        };
+      }
+
+      // Add notary to group
+      groups[cpf].notaries.push(notary);
+
+      // Add relevant payments (filtering global payments list by notaryId)
+      const notaryPayments = payments.filter(p => p.notaryId === notary.id);
+      groups[cpf].payments.push(...notaryPayments);
+    });
+
+    return Object.values(groups);
+  }, [selectedNotaryIds, notaries, payments]);
+
   // Selection Handlers
   const toggleSelection = (id: string) => {
     const newSelection = new Set(selectedNotaryIds);
@@ -190,9 +239,6 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
   };
 
   const isAllSelected = filteredNotaries.length > 0 && selectedNotaryIds.size === filteredNotaries.length;
-
-  // Get selected notary objects for preview
-  const selectedNotariesList = notaries.filter(n => selectedNotaryIds.has(n.id));
 
   // Handle PDF Download using html2pdf.js
   const handleDownloadPdf = async () => {
@@ -232,7 +278,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Cédula C</h2>
-              <p className="text-slate-500 mt-1">Selecione os beneficiários para gerar os comprovantes de rendimentos.</p>
+              <p className="text-slate-500 mt-1">Selecione os cartórios/responsáveis para gerar os comprovantes.</p>
             </div>
             {selectedNotaryIds.size > 0 && (
               <button 
@@ -240,7 +286,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                 className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition font-medium animate-in zoom-in"
               >
                 <Printer size={18} />
-                Gerar {selectedNotaryIds.size} Relatórios
+                Gerar Relatórios ({groupedReports.length} CPFs)
               </button>
             )}
           </div>
@@ -275,6 +321,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                       </button>
                     </th>
                     <th className="px-4 py-3">Cartório / Razão Social</th>
+                    <th className="px-4 py-3">Cód.</th>
                     <th className="px-4 py-3">Responsável</th>
                     <th className="px-4 py-3">CPF</th>
                     <th className="px-4 py-3">Comarca</th>
@@ -297,6 +344,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3 font-medium text-slate-800">{notary.name}</td>
+                          <td className="px-4 py-3 font-mono text-slate-500">{notary.code}</td>
                           <td className="px-4 py-3 text-slate-600">{notary.responsibleName}</td>
                           <td className="px-4 py-3 font-mono text-slate-500 text-xs">{notary.responsibleCpf}</td>
                           <td className="px-4 py-3 text-slate-600">{notary.comarca}</td>
@@ -312,7 +360,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                         <Users size={32} className="mx-auto mb-2 opacity-30" />
                         <p>Nenhum beneficiário encontrado.</p>
                       </td>
@@ -324,7 +372,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
             
             {/* Footer Stats */}
             <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-               <span className="text-sm text-slate-500">{selectedNotaryIds.size} selecionados</span>
+               <span className="text-sm text-slate-500">{selectedNotaryIds.size} cartórios selecionados</span>
             </div>
           </div>
         </div>
@@ -347,7 +395,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
               
               <div className="flex items-center gap-3">
                  <span className="text-sm text-slate-500 hidden sm:inline">
-                    {selectedNotariesList.length} documentos gerados
+                    {groupedReports.length} documentos (Agrupados por CPF)
                  </span>
                  <div className="h-6 w-px bg-slate-300 hidden sm:block"></div>
                  
@@ -383,14 +431,17 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
               `}
             </style>
             
-            {selectedNotariesList.map(notary => (
+            {groupedReports.map((reportData) => (
               <SingleReportPage 
-                key={notary.id} 
-                notary={notary} 
-                payments={payments}
+                key={reportData.responsibleCpf} 
+                data={reportData}
                 year={currentYear} 
               />
             ))}
+            
+            {groupedReports.length === 0 && (
+                <div className="text-center p-12 text-slate-500">Nenhum dado selecionado.</div>
+            )}
           </div>
 
         </div>

@@ -146,7 +146,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
       irrfValue: irrf,
       netValue: net,
       historyType: historyType,
-      status: 'PAGO'
+      status: 'EM ANDAMENTO' // Fase 1: Status inicial
     };
 
     onSave(newPayment);

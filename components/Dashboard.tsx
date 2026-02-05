@@ -40,7 +40,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
   const [timeRange, setTimeRange] = useState('6months');
-  const [activeTab, setActiveTab] = useState<'analytics' | 'map'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'map'>('map');
   const [isLoading, setIsLoading] = useState(false);
 
   // Verifica se é um usuário comum (não admin) sem cartórios vinculados
@@ -92,10 +92,10 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
 
   const statusDistribution = useMemo(() => {
     const total = payments.length;
-    if (total === 0) return { PAGO: 0, PENDENTE: 0, PROCESSANDO: 0 };
+    if (total === 0) return { PAGO: 0, PENDENTE: 0, 'EM ANDAMENTO': 0 };
 
     const counts = payments.reduce((acc, curr) => {
-      const status = curr.status || 'PENDENTE';
+      const status = curr.status || 'EM ANDAMENTO';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -103,7 +103,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
     return {
       PAGO: Math.round(((counts['PAGO'] || 0) / total) * 100),
       PENDENTE: Math.round(((counts['PENDENTE'] || 0) / total) * 100),
-      PROCESSANDO: Math.round(((counts['PROCESSANDO'] || 0) / total) * 100)
+      'EM ANDAMENTO': Math.round(((counts['EM ANDAMENTO'] || 0) / total) * 100)
     };
   }, [payments]);
 
@@ -168,6 +168,18 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
       <div className="border-b border-slate-200">
         <nav className="-mb-px flex space-x-8">
           <button
+            onClick={() => setActiveTab('map')}
+            className={`
+              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              ${activeTab === 'map'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+            `}
+          >
+            <MapIcon size={18} />
+            Visão Geral
+          </button>
+          <button
             onClick={() => setActiveTab('analytics')}
             className={`
               whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
@@ -179,20 +191,28 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
             <BarChart3 size={18} />
             Análise Financeira
           </button>
-          <button
-            onClick={() => setActiveTab('map')}
-            className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
-              ${activeTab === 'map'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
-            `}
-          >
-            <MapIcon size={18} />
-            Visão Geográfica
-          </button>
         </nav>
       </div>
+
+      {/* Tab Content: Map */}
+      {activeTab === 'map' && (
+        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+          <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[600px]">
+              <div className="px-5 py-4 flex justify-between items-center border-b border-slate-100 mb-1">
+                  <div>
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <MapIcon size={18} className="text-blue-600" />
+                        Situação Geográfica dos Cartórios
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5 ml-7">Visualização espacial de status e distribuição.</p>
+                  </div>
+              </div>
+              <div className="flex-1 w-full relative rounded-b-lg overflow-hidden">
+                  {isLoading ? <Skeleton className="w-full h-full" /> : <GeoMap notaries={notaries} />}
+              </div>
+          </div>
+        </div>
+      )}
 
       {/* Tab Content: Analytics */}
       {activeTab === 'analytics' && (
@@ -251,28 +271,8 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <StatusWidget label="Pagos" color="green" percentage={statusDistribution.PAGO} />
-              <StatusWidget label="Pendentes" color="yellow" percentage={statusDistribution.PENDENTE} />
-              <StatusWidget label="Em Processamento" color="blue" percentage={statusDistribution.PROCESSANDO} />
-          </div>
-        </div>
-      )}
-
-      {/* Tab Content: Map */}
-      {activeTab === 'map' && (
-        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-          <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[600px]">
-              <div className="px-5 py-4 flex justify-between items-center border-b border-slate-100 mb-1">
-                  <div>
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                        <MapIcon size={18} className="text-blue-600" />
-                        Situação Geográfica dos Cartórios
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5 ml-7">Visualização espacial de status e distribuição.</p>
-                  </div>
-              </div>
-              <div className="flex-1 w-full relative rounded-b-lg overflow-hidden">
-                  {isLoading ? <Skeleton className="w-full h-full" /> : <GeoMap notaries={notaries} />}
-              </div>
+              <StatusWidget label="Pendentes (Auditoria)" color="red" percentage={statusDistribution.PENDENTE} />
+              <StatusWidget label="Em Andamento" color="blue" percentage={statusDistribution['EM ANDAMENTO']} />
           </div>
         </div>
       )}
@@ -304,11 +304,13 @@ const StatCard = ({ title, value, icon, iconBg, trend, trendColor, subtext }: an
 const StatusWidget = ({ label, color, percentage }: { label: string, color: string, percentage: number }) => {
     const colorClasses: Record<string, string> = {
         green: 'bg-green-50 text-green-700 border-green-100',
+        red: 'bg-red-50 text-red-700 border-red-100', // Changed to red for Pendente
         yellow: 'bg-yellow-50 text-yellow-700 border-yellow-100',
         blue: 'bg-blue-50 text-blue-700 border-blue-100'
     };
     const barColors: Record<string, string> = {
         green: 'bg-green-500',
+        red: 'bg-red-500',
         yellow: 'bg-yellow-500',
         blue: 'bg-blue-500'
     };
