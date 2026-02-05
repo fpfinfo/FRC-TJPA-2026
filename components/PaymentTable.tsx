@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Payment } from '../types';
+import { Payment, Notary } from '../types';
 import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy } from 'lucide-react';
 import { formatCurrency, formatDate, generateId } from '../utils';
 import NewPaymentModal from './NewPaymentModal';
@@ -9,10 +9,11 @@ declare var html2pdf: any;
 
 interface PaymentTableProps {
   payments: Payment[];
+  notaries: Notary[];
   onAddPayment: (payment: Payment) => void;
 }
 
-const PaymentTable: React.FC<PaymentTableProps> = ({ payments, onAddPayment }) => {
+const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPayment }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -107,7 +108,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, onAddPayment }) =
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `FRC_Pagamentos_Export_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `TJPA-FRC_Pagamentos_Export_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -217,6 +218,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, onAddPayment }) =
         onClose={() => { setIsModalOpen(false); setPaymentToDuplicate(null); }} 
         onSave={onAddPayment}
         paymentToDuplicate={paymentToDuplicate}
+        notaries={notaries}
       />
       
       {/* Hidden File Input for Import */}
@@ -383,7 +385,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, onAddPayment }) =
       <div id="printable-table-container" className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
         {/* Print Header - Visible only in PDF via logic or print media query */}
         <div className="hidden print:block p-4 border-b border-slate-200 text-center">
-           <h1 className="text-xl font-bold">Relatório de Pagamentos FRC-TJPA</h1>
+           <h1 className="text-xl font-bold">Relatório de Pagamentos TJPA-FRC</h1>
            <p className="text-sm text-slate-500">Gerado em {new Date().toLocaleDateString()}</p>
         </div>
 

@@ -296,7 +296,7 @@ const InnerApp = () => {
                    (e.target as HTMLImageElement).style.display = 'none'; 
                 }}
               />
-            {isSidebarOpen && <span className="font-bold text-lg tracking-wide animate-in fade-in">FRC-TJPA</span>}
+            {isSidebarOpen && <span className="font-bold text-lg tracking-wide animate-in fade-in">TJPA-FRC</span>}
           </div>
         </div>
 
@@ -374,7 +374,7 @@ const InnerApp = () => {
         <main className="flex-1 overflow-auto bg-slate-50 p-6 print:p-0 print:bg-white print:overflow-visible custom-scrollbar">
           <div className="max-w-[1600px] mx-auto print:max-w-none print:mx-0">
             {currentView === 'dashboard' && <Dashboard payments={payments} notaries={notaries} />}
-            {currentView === 'payments' && <PaymentTable payments={payments} onAddPayment={handleAddPayment} />}
+            {currentView === 'payments' && <PaymentTable payments={payments} notaries={notaries} onAddPayment={handleAddPayment} />}
             {currentView === 'cedulac' && <CedulaCReport payments={payments} notaries={notaries} />}
             {currentView === 'settings' && isAdmin && (
               <NotarySettings 

@@ -86,7 +86,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 className="w-12 h-auto object-contain"
                 onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
               />
-              <span className="font-bold text-xl tracking-wide">FRC-TJPA</span>
+              <span className="font-bold text-xl tracking-wide">TJPA-FRC</span>
             </div>
             <h2 className="text-3xl font-bold mb-4 leading-tight">
               Gestão Financeira e <br/>

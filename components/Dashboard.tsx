@@ -11,13 +11,13 @@ import {
   ResponsiveContainer,
   TooltipProps 
 } from 'recharts';
-import { TrendingUp, Landmark, FileCheck, DollarSign, Map as MapIcon, Calendar, BarChart3 } from 'lucide-react';
+import { TrendingUp, Landmark, FileCheck, DollarSign, Map as MapIcon, Calendar, BarChart3, AlertTriangle } from 'lucide-react';
 import GeoMap from './GeoMap';
 import { Skeleton } from './ui/Skeleton';
 
 interface DashboardProps {
   payments: Payment[];
-  notaries?: Notary[]; // Added to support map
+  notaries?: Notary[];
 }
 
 // Using any for Tooltip props to avoid TS issues with Recharts types
@@ -43,6 +43,10 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
   const [activeTab, setActiveTab] = useState<'analytics' | 'map'>('analytics');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Verifica se é um usuário comum (não admin) sem cartórios vinculados
+  // Assumimos que se a lista de notaries está vazia e não está carregando, há um problema de vínculo.
+  const showAccessWarning = notaries.length === 0 && !isLoading;
+
   // Cálculo de Estatísticas Gerais
   const stats = useMemo(() => {
     const totalGross = payments.reduce((acc, curr) => acc + curr.grossValue, 0);
@@ -55,6 +59,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
 
   // Cálculo dos Dados do Gráfico
   const chartData = useMemo(() => {
+    type GroupedData = { name: string; gross: number; irrf: number; year: number; month: number };
     const grouped = payments.reduce((acc, curr) => {
       const key = `${curr.yearReference}-${curr.monthReference}`;
       if (!acc[key]) {
@@ -69,9 +74,9 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
       acc[key].gross += curr.grossValue;
       acc[key].irrf += curr.irrfValue;
       return acc;
-    }, {} as Record<string, { name: string; gross: number; irrf: number; year: number; month: number }>);
+    }, {} as Record<string, GroupedData>);
 
-    let sorted = Object.values(grouped).sort((a, b) => {
+    let sorted = Object.values(grouped).sort((a: GroupedData, b: GroupedData) => {
       if (a.year !== b.year) return a.year - b.year;
       return a.month - b.month;
     });
@@ -79,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
     if (timeRange === '6months') {
       sorted = sorted.slice(-6);
     } else if (timeRange === '2025') {
-       sorted = sorted.filter(item => item.year === 2025);
+       sorted = sorted.filter((item: GroupedData) => item.year === 2025);
     }
 
     return sorted;
@@ -105,6 +110,21 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
       
+      {/* Alerta de Vínculo Ausente */}
+      {showAccessWarning && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex items-start gap-3 animate-in slide-in-from-top-2">
+          <AlertTriangle className="text-orange-500 mt-0.5" size={24} />
+          <div>
+            <h3 className="text-orange-800 font-bold">Atenção: Nenhum cartório vinculado</h3>
+            <p className="text-orange-700 text-sm mt-1">
+              Seu usuário não possui permissão de visualização para nenhum cartório. 
+              Por favor, entre em contato com o administrador do sistema para que ele realize o vínculo em 
+              <strong> Configurações &gt; Gestão de Perfis</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Stats Cards (Always Visible) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {isLoading ? (

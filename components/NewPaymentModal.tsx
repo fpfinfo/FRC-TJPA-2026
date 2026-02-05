@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calculator, Calendar, AlertTriangle, Save, Loader2 } from 'lucide-react';
 import { Payment, Notary, IRRFBracket } from '../types';
-import { MOCK_NOTARIES } from '../constants';
 import { calculateIRRF, formatCurrency, generateId } from '../utils';
 import { supabase } from '../supabaseClient';
 
@@ -10,9 +9,10 @@ interface NewPaymentModalProps {
   onClose: () => void;
   onSave: (payment: Payment) => void;
   paymentToDuplicate?: Payment | null; // Added prop for duplication
+  notaries: Notary[];
 }
 
-const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSave, paymentToDuplicate }) => {
+const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSave, paymentToDuplicate, notaries }) => {
   // Form State
   const [selectedNotaryId, setSelectedNotaryId] = useState<string>('');
   const [monthRef, setMonthRef] = useState<string>('01');
@@ -68,9 +68,9 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
 
   // Handle Notary Selection & Auto-fill
   useEffect(() => {
-    const notary = MOCK_NOTARIES.find(n => n.id === selectedNotaryId);
+    const notary = notaries.find(n => n.id === selectedNotaryId);
     setNotaryData(notary || null);
-  }, [selectedNotaryId]);
+  }, [selectedNotaryId, notaries]);
 
   // Fetch Brackets when Year Changes
   useEffect(() => {
@@ -215,7 +215,7 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-800"
                   >
                     <option value="">Selecione o cartorário...</option>
-                    {MOCK_NOTARIES.map(notary => (
+                    {notaries.map(notary => (
                       <option key={notary.id} value={notary.id}>
                         {notary.responsibleName} - {notary.name}
                       </option>

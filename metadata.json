@@ -1,5 +1,5 @@
 {
-  "name": "FRC-TJPA System",
+  "name": "TJPA-FRC System",
   "description": "Financial management system for the Fundo de Apoio ao Registro Civil of TJPA, featuring payment processing, IRRF calculation, and Cédula C generation.",
   "requestFramePermissions": []
 }

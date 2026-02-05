@@ -14,12 +14,22 @@ interface CedulaCProps {
 // Sub-component for a single report page
 const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: number }> = ({ notary, payments, year }) => {
   const myPayments = payments.filter(p => p.notaryId === notary.id);
+  
+  // Sort payments chronologically: Year -> Month -> Date
+  const sortedPayments = [...myPayments].sort((a, b) => {
+    if (a.yearReference !== b.yearReference) return a.yearReference - b.yearReference;
+    const monthA = parseInt(a.monthReference) || 0;
+    const monthB = parseInt(b.monthReference) || 0;
+    if (monthA !== monthB) return monthA - monthB;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
+
   const totalGross = myPayments.reduce((acc, curr) => acc + curr.grossValue, 0);
   const totalIRRF = myPayments.reduce((acc, curr) => acc + curr.irrfValue, 0);
   const totalNet = myPayments.reduce((acc, curr) => acc + curr.netValue, 0);
 
   return (
-    <div className="cedula-page bg-white shadow-lg mx-auto max-w-[210mm] min-h-[297mm] p-[10mm] md:p-[15mm] border border-slate-200 text-slate-900 print:shadow-none print:border-none print:w-full print:max-w-none print:min-h-0 print:p-0 print:m-0 break-after-page mb-8 last:mb-0">
+    <div className="cedula-page bg-white shadow-lg mx-auto max-w-[210mm] min-h-[297mm] p-[10mm] md:p-[15mm] border border-slate-200 text-black print:shadow-none print:border-none print:w-full print:max-w-none print:min-h-0 print:p-0 print:m-0 break-after-page mb-8 last:mb-0 font-sans">
       
       {/* Header */}
       <div className="text-center border-b-2 border-slate-800 pb-4 mb-6">
@@ -30,54 +40,54 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
              className="w-20 opacity-90"
            />
          </div>
-         <h1 className="font-serif text-lg font-bold uppercase tracking-wide">Tribunal de Justiça do Estado do Pará</h1>
-         <h2 className="font-serif text-base font-semibold mt-1">Fundo de Apoio ao Registro Civil - FRC</h2>
-         <p className="text-xs mt-2 uppercase font-medium">Comprovante de Rendimentos Pagos e de Retenção de Imposto de Renda na Fonte</p>
-         <p className="text-xs mt-1">Ano Calendário: <strong>{year}</strong></p>
+         <h1 className="font-serif text-lg font-bold uppercase tracking-wide text-slate-900">Tribunal de Justiça do Estado do Pará</h1>
+         <h2 className="font-serif text-base font-semibold mt-1 text-slate-800">Fundo de Apoio ao Registro Civil - FRC</h2>
+         <p className="text-xs mt-2 uppercase font-medium text-slate-600">Comprovante de Rendimentos Pagos e de Retenção de Imposto de Renda na Fonte</p>
+         <p className="text-xs mt-1 text-slate-600">Ano Calendário: <strong>{year}</strong></p>
       </div>
 
       {/* Section 1: Beneficiary */}
       <div className="mb-6">
-        <h3 className="bg-slate-100 border border-slate-300 px-3 py-1 font-bold text-xs uppercase mb-2">1. Dados do Beneficiário</h3>
+        <h3 className="bg-slate-200 border border-slate-400 px-3 py-1 font-bold text-xs uppercase mb-2 text-slate-800">1. Dados do Beneficiário</h3>
         <div className="grid grid-cols-3 gap-3 border border-slate-300 p-3 text-xs">
            <div className="col-span-2">
-             <label className="block text-[10px] text-slate-500 uppercase">Nome Completo / Razão Social</label>
-             <span className="font-semibold block truncate">{notary.name}</span>
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Nome Completo / Razão Social</label>
+             <span className="font-semibold block truncate text-slate-900">{notary.name}</span>
            </div>
            <div>
-             <label className="block text-[10px] text-slate-500 uppercase">Responsável</label>
-             <span className="font-semibold block truncate">{notary.responsibleName}</span>
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Responsável</label>
+             <span className="font-semibold block truncate text-slate-900">{notary.responsibleName}</span>
            </div>
            <div>
-             <label className="block text-[10px] text-slate-500 uppercase">CPF</label>
-             <span className="font-semibold block">{notary.responsibleCpf}</span>
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">CPF</label>
+             <span className="font-semibold block text-slate-900">{notary.responsibleCpf}</span>
            </div>
            <div className="col-span-1">
-             <label className="block text-[10px] text-slate-500 uppercase">Código CNS</label>
-             <span className="block">{notary.ensCode}</span>
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Código CNS</label>
+             <span className="block text-slate-900">{notary.ensCode}</span>
            </div>
              <div className="col-span-1">
-             <label className="block text-[10px] text-slate-500 uppercase">Comarca</label>
-             <span className="block">{notary.comarca}</span>
+             <label className="block text-[10px] text-slate-500 uppercase font-bold">Comarca</label>
+             <span className="block text-slate-900">{notary.comarca}</span>
            </div>
         </div>
       </div>
 
       {/* Section 2: Financial Summary */}
       <div className="mb-6">
-        <h3 className="bg-slate-100 border border-slate-300 px-3 py-1 font-bold text-xs uppercase mb-2">2. Resumo Financeiro</h3>
+        <h3 className="bg-slate-200 border border-slate-400 px-3 py-1 font-bold text-xs uppercase mb-2 text-slate-800">2. Resumo Financeiro</h3>
         <div className="border border-slate-300">
            <div className="grid grid-cols-3 divide-x divide-slate-300">
               <div className="p-3 text-center">
-                <p className="text-[10px] text-slate-500 uppercase mb-1">Total Bruto</p>
-                <p className="text-base font-bold">{formatCurrency(totalGross)}</p>
+                <p className="text-[10px] text-slate-500 uppercase mb-1 font-bold">Total Bruto</p>
+                <p className="text-base font-bold text-slate-900">{formatCurrency(totalGross)}</p>
               </div>
               <div className="p-3 text-center">
-                <p className="text-[10px] text-slate-500 uppercase mb-1">Total IRRF</p>
+                <p className="text-[10px] text-slate-500 uppercase mb-1 font-bold">Total IRRF</p>
                 <p className="text-base font-bold text-red-700">{formatCurrency(totalIRRF)}</p>
               </div>
               <div className="p-3 text-center bg-slate-50">
-                <p className="text-[10px] text-slate-500 uppercase mb-1">Líquido</p>
+                <p className="text-[10px] text-slate-500 uppercase mb-1 font-bold">Líquido</p>
                 <p className="text-base font-bold text-green-700">{formatCurrency(totalNet)}</p>
               </div>
            </div>
@@ -86,45 +96,57 @@ const SingleReportPage: React.FC<{ notary: Notary; payments: Payment[]; year: nu
 
       {/* Section 3: Details */}
       <div className="mb-6">
-        <h3 className="bg-slate-100 border border-slate-300 px-3 py-1 font-bold text-xs uppercase mb-2">3. Discriminação dos Pagamentos</h3>
+        <h3 className="bg-slate-200 border border-slate-400 px-3 py-1 font-bold text-xs uppercase mb-2 text-slate-800">3. Discriminação dos Pagamentos</h3>
         <table className="w-full text-xs border-collapse border border-slate-300">
           <thead>
-            <tr className="bg-slate-50">
-              <th className="border border-slate-300 px-2 py-1.5 text-left w-16">Ref.</th>
-              <th className="border border-slate-300 px-2 py-1.5 text-left w-24">Data</th>
-              <th className="border border-slate-300 px-2 py-1.5 text-left">Histórico</th>
-              <th className="border border-slate-300 px-2 py-1.5 text-right w-24">Bruto</th>
-              <th className="border border-slate-300 px-2 py-1.5 text-right w-20">IRRF</th>
-              <th className="border border-slate-300 px-2 py-1.5 text-right w-24">Líquido</th>
+            <tr className="bg-slate-100 text-slate-800">
+              <th className="border border-slate-300 px-2 py-2 text-center w-16 font-bold uppercase">Mês Ref.</th>
+              <th className="border border-slate-300 px-2 py-2 text-center w-24 font-bold uppercase">Data Pagto.</th>
+              <th className="border border-slate-300 px-2 py-2 text-left font-bold uppercase">Histórico / Descrição</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-28 font-bold uppercase">Rendimento Bruto</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-24 font-bold uppercase">IRRF Retido</th>
+              <th className="border border-slate-300 px-2 py-2 text-right w-28 font-bold uppercase">Rendimento Líquido</th>
             </tr>
           </thead>
           <tbody>
-            {myPayments.map((p) => (
-              <tr key={p.id}>
-                <td className="border border-slate-300 px-2 py-1.5 text-center">{p.monthReference}</td>
-                <td className="border border-slate-300 px-2 py-1.5">{formatDate(p.date)}</td>
-                <td className="border border-slate-300 px-2 py-1.5 truncate max-w-[150px]">{p.historyType}</td>
-                <td className="border border-slate-300 px-2 py-1.5 text-right">{formatCurrency(p.grossValue)}</td>
-                <td className="border border-slate-300 px-2 py-1.5 text-right">{formatCurrency(p.irrfValue)}</td>
-                <td className="border border-slate-300 px-2 py-1.5 text-right font-medium">{formatCurrency(p.netValue)}</td>
+            {sortedPayments.map((p, index) => (
+              <tr key={p.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                <td className="border border-slate-300 px-2 py-1.5 text-center font-medium text-slate-900">{p.monthReference}/{p.yearReference}</td>
+                <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-900">{formatDate(p.date)}</td>
+                <td className="border border-slate-300 px-2 py-1.5 truncate max-w-[200px] text-slate-900 uppercase text-[10px]">{p.historyType}</td>
+                <td className="border border-slate-300 px-2 py-1.5 text-right text-slate-900">{formatCurrency(p.grossValue)}</td>
+                <td className="border border-slate-300 px-2 py-1.5 text-right text-red-700">{p.irrfValue > 0 ? formatCurrency(p.irrfValue) : '-'}</td>
+                <td className="border border-slate-300 px-2 py-1.5 text-right font-bold text-slate-900">{formatCurrency(p.netValue)}</td>
               </tr>
             ))}
-            {myPayments.length === 0 && (
+            {sortedPayments.length === 0 && (
               <tr>
-                 <td colSpan={6} className="border border-slate-300 px-3 py-6 text-center text-slate-500 italic">
+                 <td colSpan={6} className="border border-slate-300 px-3 py-8 text-center text-slate-500 italic">
                     Nenhum registro encontrado para este período.
                  </td>
               </tr>
             )}
           </tbody>
+          {/* Footer Total Row */}
+          {sortedPayments.length > 0 && (
+             <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-400">
+                <tr>
+                    <td colSpan={3} className="border border-slate-300 px-2 py-2 text-right uppercase text-[10px]">Totais do Período:</td>
+                    <td className="border border-slate-300 px-2 py-2 text-right">{formatCurrency(totalGross)}</td>
+                    <td className="border border-slate-300 px-2 py-2 text-right text-red-700">{formatCurrency(totalIRRF)}</td>
+                    <td className="border border-slate-300 px-2 py-2 text-right text-green-800">{formatCurrency(totalNet)}</td>
+                </tr>
+             </tfoot>
+          )}
         </table>
       </div>
 
       {/* Footer */}
-      <div className="mt-8 text-center text-[10px] text-slate-500">
-         <p>Este documento foi gerado eletronicamente pelo Sistema FRC-TJPA.</p>
+      <div className="mt-8 text-center text-[10px] text-slate-500 border-t border-slate-100 pt-4">
+         <p className="font-semibold text-slate-700">TJPA-FRC - Sistema de Gestão do Fundo de Apoio ao Registro Civil</p>
+         <p>Este documento foi gerado eletronicamente e possui validade jurídica.</p>
          <p>Data de Emissão: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR')}</p>
-         <p className="mt-1 font-mono">HASH: {Math.random().toString(36).substr(2, 16).toUpperCase()}</p>
+         <p className="mt-1 font-mono text-slate-400">HASH: {Math.random().toString(36).substr(2, 16).toUpperCase()}</p>
       </div>
     </div>
   );

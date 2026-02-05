@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, MapPin } from 'lucide-react';
 import { Notary } from '../types';
 import { generateId } from '../utils';
 
@@ -26,6 +26,8 @@ const NewNotaryModal: React.FC<NewNotaryModalProps> = ({ isOpen, onClose, onSave
     email: '',
     responsibleName: '',
     responsibleCpf: '',
+    latitude: undefined,
+    longitude: undefined,
   };
 
   const [formData, setFormData] = useState<Partial<Notary>>(initialFormState);
@@ -54,6 +56,10 @@ const NewNotaryModal: React.FC<NewNotaryModalProps> = ({ isOpen, onClose, onSave
 
   const handleChange = (field: keyof Notary, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleNumberChange = (field: keyof Notary, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value ? parseFloat(value) : undefined }));
   };
 
   const toggleStatus = () => {
@@ -166,7 +172,7 @@ const NewNotaryModal: React.FC<NewNotaryModalProps> = ({ isOpen, onClose, onSave
             {/* Endereço */}
             <div>
               <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3 border-b border-slate-100 pb-1 pt-2">
-                Endereço
+                Endereço & Localização
               </h4>
               <div className="space-y-4">
                 <div>
@@ -207,6 +213,41 @@ const NewNotaryModal: React.FC<NewNotaryModalProps> = ({ isOpen, onClose, onSave
                       className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                     />
                   </div>
+                </div>
+
+                {/* Geolocalização */}
+                <div className="bg-slate-50 p-4 rounded-md border border-slate-200">
+                   <div className="flex items-center gap-2 mb-3 text-slate-700">
+                     <MapPin size={18} />
+                     <h5 className="text-sm font-bold">Coordenadas Geográficas</h5>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                       <label className="block text-xs font-semibold text-slate-500 mb-1">Latitude</label>
+                       <input 
+                         type="number" 
+                         step="any"
+                         placeholder="-1.4557"
+                         value={formData.latitude || ''}
+                         onChange={(e) => handleNumberChange('latitude', e.target.value)}
+                         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900 text-sm"
+                       />
+                     </div>
+                     <div>
+                       <label className="block text-xs font-semibold text-slate-500 mb-1">Longitude</label>
+                       <input 
+                         type="number" 
+                         step="any"
+                         placeholder="-48.4902"
+                         value={formData.longitude || ''}
+                         onChange={(e) => handleNumberChange('longitude', e.target.value)}
+                         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900 text-sm"
+                       />
+                     </div>
+                   </div>
+                   <p className="text-[10px] text-slate-500 mt-2">
+                     * Utilize coordenadas decimais. Você pode obtê-las no Google Maps clicando com o botão direito no local.
+                   </p>
                 </div>
               </div>
             </div>
