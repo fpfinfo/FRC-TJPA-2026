@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Payment, Notary } from '../types';
-import { Search, Plus, Filter, ChevronLeft, ChevronRight, X, Copy, ListFilter, CheckCircle, AlertOctagon, Clock, Calendar, ChevronDown, FileType } from 'lucide-react';
+import { Search, Plus, Filter, ChevronLeft, ChevronRight, X, Copy, ListFilter, CheckCircle, AlertOctagon, Clock, Calendar, ChevronDown, FileType, ShieldCheck } from 'lucide-react';
 import { formatCurrency, formatCPF, formatDate, formatLote } from '../utils';
 import NewPaymentModal from './NewPaymentModal';
 import StatusAuditModal from './StatusAuditModal';
@@ -24,7 +24,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
   
   // Filtros
   const [searchGlobal, setSearchGlobal] = useState('');
-  const [filterYear, setFilterYear] = useState('2025');
+  const [filterYear, setFilterYear] = useState('2026');
   const [filterLoteType, setFilterLoteType] = useState('');
 
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
@@ -79,7 +79,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
     const colors: Record<string, string> = {
       'NASCIMENTO': 'bg-sky-100 text-sky-700 border-sky-200',
       'CASAMENTO': 'bg-rose-100 text-rose-700 border-rose-200',
-      'OBITO': 'bg-slate-200 text-slate-700 border-slate-300'
+      'OBITO': 'bg-slate-200 text-slate-700 border-slate-300',
+      'MULTIPLOS': 'bg-purple-100 text-purple-700 border-purple-200'
     };
     return (
       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border leading-none ${colors[act] || 'bg-slate-100 text-slate-600'}`}>
@@ -89,7 +90,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 reveal-stagger">
       <NewPaymentModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
@@ -112,9 +113,9 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-lg shadow-blue-500/20 transition-all transform hover:scale-[1.02]"
+          className="btn-premium-gold flex items-center gap-2"
         >
-          <Plus size={18} /> Novo Pagamento
+          <Plus size={18} /> Novo Lançamento
         </button>
       </div>
 
@@ -149,31 +150,32 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
               </div>
             )}
             
-            <div className="flex flex-wrap items-center gap-3 ml-auto">
-              <div className="relative">
+            <div className="flex flex-wrap items-center gap-3 ml-auto w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
                 <input 
                   type="text" 
-                  placeholder="Pesquisar..." 
+                  placeholder="PESQUISAR..." 
                   value={searchGlobal}
                   onChange={(e) => setSearchGlobal(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
+                  className="pl-10 pr-4 py-2 bg-white border-2 border-slate-200 focus:border-amber-500 rounded-none text-[10px] font-black placeholder:text-slate-300 uppercase tracking-tight outline-none w-full transition-all"
                 />
               </div>
               <select 
                 value={filterYear}
                 onChange={(e) => setFilterYear(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
+                className="px-3 py-2 bg-white border-2 border-slate-200 rounded-none text-[10px] font-black uppercase tracking-widest outline-none focus:border-amber-500 transition-all cursor-pointer"
               >
                 <option value="2024">2024</option>
                 <option value="2025">2025</option>
+                <option value="2026">2026</option>
               </select>
               <select 
                 value={filterLoteType}
                 onChange={(e) => setFilterLoteType(e.target.value)}
-                className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm outline-none"
+                className="px-3 py-2 bg-white border-2 border-slate-200 rounded-none text-[10px] font-black uppercase tracking-widest outline-none focus:border-amber-500 transition-all cursor-pointer"
               >
-                <option value="">Tipo Lote: Todos</option>
+                <option value="">Lote: Todos</option>
                 <option value="PRINCIPAL">Principal</option>
                 <option value="COMPLEMENTAR">Complementar</option>
               </select>
@@ -182,8 +184,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         </div>
 
         {/* Tabela Complexa */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse min-w-[1400px]">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left text-sm border-collapse min-w-[1500px]">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200 sticky left-0 bg-slate-50 z-10">Status</th>
@@ -193,6 +195,7 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200 w-32">Data Vínculo</th>
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200">Lote</th>
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200">Natureza / Lote</th>
+                <th colSpan={3} className="px-4 py-2 font-bold text-amber-500 text-[11px] uppercase text-center border-b border-r border-slate-200 bg-amber-50/20 tracking-[0.2em]">Conformidade Financeira (TRIPLE CHECK)</th>
                 <th colSpan={2} className="px-4 py-2 font-bold text-slate-600 text-[11px] uppercase text-center border-b border-r border-slate-200 bg-slate-100/50">Certidões 1ª Via (N/C/Ó)</th>
                 <th colSpan={2} className="px-4 py-2 font-bold text-slate-600 text-[11px] uppercase text-center border-b border-r border-slate-200 bg-slate-100/50">Certidões 2ª Via (N/C/Ó)</th>
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-800 text-[11px] uppercase text-right border-r border-slate-200 bg-blue-50/50">Total Bruto</th>
@@ -201,6 +204,9 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                 <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase text-center">Ações</th>
               </tr>
               <tr className="bg-slate-50/50">
+                <th className="px-2 py-2 font-bold text-amber-700 text-[10px] text-center border-r border-slate-200 bg-amber-50/30">N.E.</th>
+                <th className="px-2 py-2 font-bold text-amber-700 text-[10px] text-center border-r border-slate-200 bg-amber-50/30">D.L.</th>
+                <th className="px-2 py-2 font-bold text-amber-700 text-[10px] text-center border-r border-slate-200 bg-amber-50/30">O.B.</th>
                 <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">Qtd</th>
                 <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">R$ 65,00</th>
                 <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">Qtd</th>
@@ -224,13 +230,13 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                       <select 
                         value={p.vinculo || 'Titular'}
                         onChange={(e) => onUpdatePaymentField?.(p.id, 'vinculo', e.target.value)}
-                        className="w-full text-[10px] font-black text-slate-800 bg-white border-2 border-slate-200 rounded-lg px-2.5 py-2 outline-none focus:border-blue-500 focus:ring-0 cursor-pointer appearance-none uppercase transition-all hover:bg-slate-50"
+                        className="w-full text-[10px] font-black text-slate-800 bg-white border-2 border-slate-200 rounded-none px-2.5 py-2 outline-none focus:border-amber-500 focus:ring-0 cursor-pointer appearance-none uppercase transition-all hover:bg-slate-50"
                       >
                         <option value="Titular">Titular</option>
                         <option value="Interino">Interino</option>
                         <option value="Interventor">Interventor</option>
                       </select>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within/select:text-blue-500">
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within/select:text-amber-500">
                          <ChevronDown size={14} />
                       </div>
                     </div>
@@ -245,7 +251,23 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                         </span>
                      </div>
                   </td>
-                  
+                   {/* Triple Check Status Stamps */}
+                  <td className="px-2 py-4 text-center border-r border-slate-100">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${p.ne_empenho ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                      {p.ne_empenho || 'PEND.'}
+                    </span>
+                  </td>
+                  <td className="px-2 py-4 text-center border-r border-slate-100">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${p.dl_liquidacao ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                      {p.dl_liquidacao || 'PEND.'}
+                    </span>
+                  </td>
+                  <td className="px-2 py-4 text-center border-r border-slate-100">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${p.ob_ordem_bancaria ? 'bg-green-100 text-green-800 border-green-200' : 'bg-slate-50 text-slate-300 border-slate-100'}`}>
+                      {p.ob_ordem_bancaria || 'PEND.'}
+                    </span>
+                  </td>
+
                   {/* Atos 1ª Via */}
                   <td className="px-2 py-4 text-center font-mono font-bold text-slate-700">{p.qtdVia1 || 0}</td>
                   <td className="px-2 py-4 text-right text-slate-500 font-mono text-[10px] pr-4">{formatCurrency((p.qtdVia1 || 0) * 65)}</td>
@@ -259,16 +281,16 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
                   <td className="px-4 py-4 text-right font-medium text-red-600">{formatCurrency(p.irrfValue)}</td>
                   <td className="px-4 py-4 text-right font-black text-green-700">{formatCurrency(p.netValue)}</td>
                   
-                  <td className="px-4 py-4">
-                    <div className="flex items-center justify-center gap-2">
+                  <td className="px-4 py-4 border-l border-slate-100">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button 
                         onClick={() => { setPaymentToAudit(p); setIsAuditModalOpen(true); }}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" 
-                        title="Auditar Status"
+                        className="p-2 text-amber-600 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all" 
+                        title="Conformidade Financeira"
                       >
-                        <ListFilter size={16} />
+                        <ShieldCheck size={18} />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-slate-600 transition">
+                      <button className="p-2 text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-200 transition-all">
                         <Copy size={16} />
                       </button>
                     </div>
@@ -282,11 +304,9 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
         {/* Footer Paginação */}
         <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
           <div>Exibindo {filteredPayments.length} registros de {payments.length}</div>
-          <div className="flex gap-1">
             <button className="p-1 px-2 border border-slate-300 rounded hover:bg-white disabled:opacity-30" disabled><ChevronLeft size={14}/></button>
-            <button className="p-1 px-2 border border-slate-300 rounded bg-white font-bold text-blue-600 shadow-sm">1</button>
+            <button className="p-1 px-2 border-2 border-amber-500 bg-amber-50 font-black text-amber-600 shadow-sm text-[10px]">1</button>
             <button className="p-1 px-2 border border-slate-300 rounded hover:bg-white disabled:opacity-30" disabled><ChevronRight size={14}/></button>
-          </div>
         </div>
       </div>
     </div>
@@ -296,8 +316,8 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
 const GenreTab = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`px-8 py-4 text-sm font-bold transition-all border-b-2 relative ${
-      active ? 'border-blue-600 text-blue-600 bg-blue-50/30' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+    className={`px-6 sm:px-8 py-3 sm:py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-4 relative ${
+      active ? 'border-amber-500 text-slate-900 bg-amber-50/20' : 'border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'
     }`}
   >
     {label}
@@ -307,8 +327,8 @@ const GenreTab = ({ label, active, onClick }: { label: string, active: boolean, 
 const SubTabItem = ({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-      active ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+    className={`px-3 sm:px-4 py-1.5 rounded-none text-[9px] font-black uppercase tracking-widest transition-all ${
+      active ? 'bg-slate-900 text-amber-500 shadow-lg' : 'bg-white text-slate-400 border-2 border-slate-100 hover:border-slate-200'
     }`}
   >
     {label}

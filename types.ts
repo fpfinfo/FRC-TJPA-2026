@@ -17,14 +17,27 @@ export interface Payment {
   status: 'PAGO' | 'PENDENTE' | 'EM ANDAMENTO';
   pendingReason?: string;
   
+  // Conformidade Financeira (Triple Check NE/DL/OB)
+  ne_empenho?: string;
+  dl_liquidacao?: string;
+  ob_ordem_bancaria?: string;
+  
   // Campos de Negócio TJPA
   vinculo?: 'Titular' | 'Interino' | 'Interventor';
   loteType?: 'PRINCIPAL' | 'COMPLEMENTAR';
-  actType?: 'NASCIMENTO' | 'CASAMENTO' | 'OBITO';
-  qtdVia1?: number;
+  actType?: 'NASCIMENTO' | 'CASAMENTO' | 'OBITO' | 'MULTIPLOS';
+  qtdVia1?: number; // Total Via 1
   valVia1?: number;
-  qtdVia2?: number;
+  qtdVia2?: number; // Total Via 2
   valVia2?: number;
+  
+  // Detalhamento por Natureza
+  qtdNascimentoVia1?: number;
+  qtdNascimentoVia2?: number;
+  qtdCasamentoVia1?: number;
+  qtdCasamentoVia2?: number;
+  qtdObitoVia1?: number;
+  qtdObitoVia2?: number;
   genre?: 'ATOS_GRATUITOS' | 'RENDA_MINIMA' | 'AJUDA_CUSTO';
   municipality?: string;
   dataVinculo?: string;
@@ -48,6 +61,7 @@ export interface Notary {
   latitude?: number;
   longitude?: number;
   vinculoPadrao?: 'Titular' | 'Interino' | 'Interventor';
+  dataVinculo?: string;
 }
 
 export interface IRRFBracket {

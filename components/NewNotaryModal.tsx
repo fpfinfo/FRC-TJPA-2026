@@ -305,6 +305,27 @@ const NewNotaryModal: React.FC<NewNotaryModalProps> = ({ isOpen, onClose, onSave
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                   />
                 </div>
+                <div>
+                   <label className="block text-sm font-semibold text-slate-700 mb-1">Vínculo do Responsável</label>
+                   <select 
+                     value={formData.vinculoPadrao || 'Titular'} 
+                     onChange={(e) => handleChange('vinculoPadrao', e.target.value)}
+                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                   >
+                     <option value="Titular">Titular</option>
+                     <option value="Interino">Interino</option>
+                     <option value="Interventor">Interventor</option>
+                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Data Início Vínculo</label>
+                  <input 
+                    type="date"
+                    value={formData.dataVinculo || ''}
+                    onChange={(e) => handleChange('dataVinculo', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                   />
+                </div>
               </div>
             </div>
 

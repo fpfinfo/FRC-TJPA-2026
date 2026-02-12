@@ -23,14 +23,16 @@ interface DashboardProps {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white p-3 border border-slate-200 shadow-lg rounded-lg text-sm z-50">
-        <p className="font-semibold text-slate-800 mb-1">{label}</p>
-        <p className="text-blue-600">
-          Repassado: {formatCurrency(payload[0].value as number)}
-        </p>
-        <p className="text-red-500">
-          IRRF: {formatCurrency(payload[1].value as number)}
-        </p>
+      <div className="bg-slate-900 p-4 border border-amber-500/30 shadow-2xl text-xs z-50">
+        <p className="font-black text-white mb-2 uppercase tracking-widest">{label}</p>
+        <div className="space-y-1">
+          <p className="text-amber-500 font-bold flex justify-between gap-4">
+            Bruto: <span>{formatCurrency(payload[0].value as number)}</span>
+          </p>
+          <p className="text-slate-400 flex justify-between gap-4">
+            IRRF: <span>{formatCurrency(payload[1].value as number)}</span>
+          </p>
+        </div>
       </div>
     );
   }
@@ -107,7 +109,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
   }, [payments]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-8 reveal-stagger">
       
       {/* Alerta de Vínculo Ausente */}
       {showAccessWarning && (
@@ -133,31 +135,31 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
             <StatCard 
               title="Total Repassado" 
               value={formatCurrency(stats.totalGross)} 
-              icon={<DollarSign className="text-white" size={20} />}
-              iconBg="bg-blue-600"
+              icon={<DollarSign className="text-slate-900" size={20} />}
+              iconBg="bg-amber-500"
               trend={stats.totalCount > 0 ? "+12% vs mês anterior" : "Sem dados"}
-              trendColor="text-green-600"
+              trendColor="text-amber-600"
             />
             <StatCard 
               title="IRRF Retido" 
               value={formatCurrency(stats.totalIRRF)} 
               icon={<Landmark className="text-white" size={20} />}
-              iconBg="bg-red-500"
+              iconBg="bg-slate-700"
               subtext="Retenção na fonte"
             />
             <StatCard 
               title="Valor Líquido" 
               value={formatCurrency(stats.totalNet)} 
-              icon={<TrendingUp className="text-white" size={20} />}
-              iconBg="bg-green-600"
+              icon={<TrendingUp className="text-slate-900" size={20} />}
+              iconBg="bg-amber-400"
               subtext="Disponível para saque"
             />
             <StatCard 
               title="Total de Registros" 
               value={stats.totalCount.toString()} 
               icon={<FileCheck className="text-white" size={20} />}
-              iconBg="bg-slate-600"
-              subtext="Pagamentos processados"
+              iconBg="bg-slate-900"
+              subtext="Atos processados em 2026"
             />
           </>
         )}
@@ -169,26 +171,26 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
           <button
             onClick={() => setActiveTab('map')}
             className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              whitespace-nowrap pb-4 px-1 border-b-4 font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all
               ${activeTab === 'map'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200'}
             `}
           >
-            <MapIcon size={18} />
-            Visão Geral
+            <MapIcon size={16} />
+            Monitoramento Global
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
             className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              whitespace-nowrap pb-4 px-1 border-b-4 font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all
               ${activeTab === 'analytics'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200'}
             `}
           >
-            <BarChart3 size={18} />
-            Análise Financeira
+            <BarChart3 size={16} />
+            Análise de Repasses
           </button>
         </nav>
       </div>
@@ -196,14 +198,14 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
       {/* Tab Content: Map (Default) */}
       {activeTab === 'map' && (
         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-          <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[600px]">
-              <div className="px-5 py-4 flex justify-between items-center border-b border-slate-100 mb-1">
+          <div className="bg-white border-l-4 border-amber-500 shadow-sm flex flex-col h-[650px] overflow-hidden">
+              <div className="px-6 py-5 flex justify-between items-center border-b border-slate-100 bg-slate-50/50">
                   <div>
-                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                        <MapIcon size={18} className="text-blue-600" />
-                        Situação Geográfica dos Cartórios
+                    <h3 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter text-lg">
+                        <MapIcon size={20} className="text-amber-500" />
+                        Distribuição Geográfica
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5 ml-7">Visualização espacial de status e distribuição.</p>
+                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-0.5 ml-7">Sincronização em Tempo Real | SISUP 2026</p>
                   </div>
               </div>
               <div className="flex-1 w-full relative rounded-b-lg overflow-hidden">
@@ -254,9 +256,9 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
                         tick={{fill: '#64748b', fontSize: 12}}
                         tickFormatter={(value) => `R$ ${value >= 1000 ? `${value/1000}k` : value}`}
                         />
-                        <Tooltip content={<CustomTooltip />} cursor={{fill: '#f8fafc'}} />
-                        <Bar dataKey="gross" name="Bruto" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={60} />
-                        <Bar dataKey="irrf" name="IRRF" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={60} />
+                        <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(251, 191, 36, 0.05)'}} />
+                        <Bar dataKey="gross" name="Bruto" fill="#fbbf24" radius={0} maxBarSize={40} />
+                        <Bar dataKey="irrf" name="IRRF" fill="#0f172a" radius={0} maxBarSize={40} />
                     </BarChart>
                     </ResponsiveContainer>
                 ) : (
@@ -269,9 +271,9 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <StatusWidget label="Pagos" color="green" percentage={statusDistribution.PAGO} />
-              <StatusWidget label="Pendentes (Auditoria)" color="red" percentage={statusDistribution.PENDENTE} />
-              <StatusWidget label="Em Andamento" color="blue" percentage={statusDistribution['EM ANDAMENTO']} />
+              <StatusWidget label="Atos Processados" color="amber" percentage={statusDistribution.PAGO} />
+              <StatusWidget label="Pendentes (N.E/O.B)" color="slate" percentage={statusDistribution.PENDENTE} />
+              <StatusWidget label="Em Transmissão" color="amber-light" percentage={statusDistribution['EM ANDAMENTO']} />
           </div>
         </div>
       )}
@@ -282,18 +284,20 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
 
 // Componente Auxiliar para Cards
 const StatCard = ({ title, value, icon, iconBg, trend, trendColor, subtext }: any) => (
-  <div className="bg-white p-5 rounded-xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-100 flex flex-col justify-between h-full transition hover:translate-y-[-2px] hover:shadow-md">
-    <div className="flex justify-between items-start mb-3">
+  <div className="bg-white p-6 border-b-2 border-slate-100 hover:border-amber-500 transition-all duration-300 shadow-sm relative overflow-hidden group">
+    <div className="flex justify-between items-start mb-4">
       <div>
-        <p className="text-sm font-medium text-slate-500">{title}</p>
-        <h4 className="text-2xl font-bold text-slate-800 mt-1 tracking-tight">{value}</h4>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+        <h4 className="text-3xl font-black text-slate-900 mt-1 tracking-tighter uppercase">{value}</h4>
       </div>
-      <div className={`p-3 rounded-lg shadow-sm ${iconBg}`}>{icon}</div>
+      <div className={`p-3 border-l-4 border-amber-500 ${iconBg} bg-opacity-10 group-hover:bg-opacity-100 transition-all duration-300`}>
+        {icon}
+      </div>
     </div>
     {(trend || subtext) && (
-      <div className="mt-auto pt-2 border-t border-slate-50">
-        {trend && <span className={`text-xs font-bold ${trendColor}`}>{trend}</span>}
-        {subtext && <span className="text-xs text-slate-400">{subtext}</span>}
+      <div className="mt-auto pt-3 border-t border-slate-50 flex items-center justify-between">
+        {trend && <span className={`text-[10px] font-black uppercase tracking-tighter ${trendColor}`}>{trend}</span>}
+        {subtext && <span className="text-[10px] text-slate-400 font-bold uppercase">{subtext}</span>}
       </div>
     )}
   </div>
@@ -302,27 +306,25 @@ const StatCard = ({ title, value, icon, iconBg, trend, trendColor, subtext }: an
 // Componente Auxiliar para Widget de Status
 const StatusWidget = ({ label, color, percentage }: { label: string, color: string, percentage: number }) => {
     const colorClasses: Record<string, string> = {
-        green: 'bg-green-50 text-green-700 border-green-100',
-        red: 'bg-red-50 text-red-700 border-red-100', // Changed to red for Pendente
-        yellow: 'bg-yellow-50 text-yellow-700 border-yellow-100',
-        blue: 'bg-blue-50 text-blue-700 border-blue-100'
+        amber: 'bg-white border-l-4 border-amber-500 text-slate-900',
+        slate: 'bg-white border-l-4 border-slate-900 text-slate-900',
+        'amber-light': 'bg-white border-l-4 border-amber-200 text-slate-600'
     };
     const barColors: Record<string, string> = {
-        green: 'bg-green-500',
-        red: 'bg-red-500',
-        yellow: 'bg-yellow-500',
-        blue: 'bg-blue-500'
+        amber: 'bg-amber-500',
+        slate: 'bg-slate-900',
+        'amber-light': 'bg-amber-200'
     };
 
     return (
-        <div className={`p-4 rounded-xl border ${colorClasses[color]} flex items-center justify-between shadow-sm`}>
-            <div className="flex flex-col gap-1 w-full mr-4">
-                <span className="font-semibold text-sm">{label}</span>
-                <div className="w-full h-1.5 bg-white/50 rounded-full overflow-hidden">
-                    <div className={`h-full rounded-full ${barColors[color]}`} style={{ width: `${percentage}%` }}></div>
+        <div className={`p-5 shadow-sm border border-slate-100 ${colorClasses[color]} flex items-center justify-between transition-all hover:bg-slate-50 cursor-pointer`}>
+            <div className="flex flex-col gap-2 w-full mr-6">
+                <span className="font-black text-[10px] uppercase tracking-widest">{label}</span>
+                <div className="w-full h-1 bg-slate-100 overflow-hidden">
+                    <div className={`h-full ${barColors[color]}`} style={{ width: `${percentage}%` }}></div>
                 </div>
             </div>
-            <span className="text-2xl font-bold">{percentage}%</span>
+            <span className="text-2xl font-black italic tracking-tighter">{percentage}%</span>
         </div>
     );
 };

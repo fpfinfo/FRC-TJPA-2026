@@ -283,7 +283,7 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
             {selectedNotaryIds.size > 0 && (
               <button 
                 onClick={() => setViewMode('preview')}
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition font-medium animate-in zoom-in"
+                className="btn-premium-gold flex items-center gap-3 animate-in zoom-in"
               >
                 <Printer size={18} />
                 Gerar Relatórios ({groupedReports.length} CPFs)
@@ -291,41 +291,41 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
             )}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white border-l-4 border-amber-500 shadow-sm overflow-hidden">
             {/* Toolbar */}
-            <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row gap-4 justify-between items-center">
-              <div className="relative w-full md:max-w-md">
-                <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row gap-5 justify-between items-center">
+              <div className="relative w-full md:max-w-md group">
+                <Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-amber-500 transition-colors" size={18} />
                 <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por nome, responsável ou CPF..." 
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  placeholder="FILTRAR POR NOME, RESPONSÁVEL OU CPF..." 
+                  className="w-full pl-10 pr-4 py-2.5 border-b-2 border-slate-200 focus:border-amber-500 outline-none text-xs font-black placeholder:text-slate-300 uppercase tracking-tight transition-all"
                 />
               </div>
-              <div className="flex items-center gap-2 text-sm text-slate-600 bg-white px-3 py-1.5 rounded-md border border-slate-200">
+              <div className="flex items-center gap-3 text-[10px] text-amber-600 font-black uppercase tracking-widest bg-white px-4 py-2 border border-slate-100 shadow-sm">
                 <Filter size={14} />
-                <span>Mostrando {filteredNotaries.length} de {notaries.length}</span>
+                <span>Exibindo {filteredNotaries.length} Bases</span>
               </div>
             </div>
 
             {/* List */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="bg-white text-slate-500 font-semibold border-b border-slate-200">
+                <thead className="bg-white text-[10px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100">
                   <tr>
-                    <th className="px-4 py-3 w-12 text-center">
-                      <button onClick={toggleSelectAll} className="text-slate-500 hover:text-blue-600">
-                        {isAllSelected ? <CheckSquare size={20} className="text-blue-600" /> : <Square size={20} />}
+                    <th className="px-5 py-4 w-12 text-center">
+                      <button onClick={toggleSelectAll} className="text-slate-400 hover:text-amber-500 transition-colors">
+                        {isAllSelected ? <CheckSquare size={20} className="text-amber-500" /> : <Square size={20} />}
                       </button>
                     </th>
-                    <th className="px-4 py-3">Cartório / Razão Social</th>
-                    <th className="px-4 py-3">Cód.</th>
-                    <th className="px-4 py-3">Responsável</th>
-                    <th className="px-4 py-3">CPF</th>
-                    <th className="px-4 py-3">Comarca</th>
-                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-5 py-4">Serventia Extrajudicial</th>
+                    <th className="px-5 py-4">Cod. Sistema</th>
+                    <th className="px-5 py-4">Responsável Legal</th>
+                    <th className="px-5 py-4">Documento CPF</th>
+                    <th className="px-5 py-4">Comarca</th>
+                    <th className="px-5 py-4 text-center">Conformidade</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -336,21 +336,21 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                         <tr 
                           key={notary.id} 
                           onClick={() => toggleSelection(notary.id)}
-                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}
+                          className={`cursor-pointer transition-all ${isSelected ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}
                         >
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex justify-center text-slate-400">
-                               {isSelected ? <CheckSquare size={20} className="text-blue-600" /> : <Square size={20} />}
+                          <td className="px-5 py-4 text-center">
+                            <div className="flex justify-center text-slate-300">
+                               {isSelected ? <CheckSquare size={20} className="text-amber-500" /> : <Square size={20} />}
                             </div>
                           </td>
-                          <td className="px-4 py-3 font-medium text-slate-800">{notary.name}</td>
-                          <td className="px-4 py-3 font-mono text-slate-500">{notary.code}</td>
-                          <td className="px-4 py-3 text-slate-600">{notary.responsibleName}</td>
-                          <td className="px-4 py-3 font-mono text-slate-500 text-xs">{notary.responsibleCpf}</td>
-                          <td className="px-4 py-3 text-slate-600">{notary.comarca}</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase ${
-                              notary.status === 'ATIVO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          <td className="px-5 py-4 font-black text-slate-900 tracking-tighter uppercase">{notary.name}</td>
+                          <td className="px-5 py-4 font-mono font-bold text-slate-400 text-xs">{notary.code}</td>
+                          <td className="px-5 py-4 text-slate-600 font-medium">{notary.responsibleName}</td>
+                          <td className="px-5 py-4 font-mono text-slate-400 text-xs font-bold">{notary.responsibleCpf}</td>
+                          <td className="px-5 py-4 text-slate-500 text-xs font-bold uppercase">{notary.comarca}</td>
+                          <td className="px-5 py-4 text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-[9px] font-black uppercase tracking-widest border ${
+                              notary.status === 'ATIVO' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-400 border-slate-100'
                             }`}>
                               {notary.status}
                             </span>
@@ -393,55 +393,57 @@ const CedulaCReport: React.FC<CedulaCProps> = ({ payments, notaries }) => {
                 Voltar para Seleção
               </button>
               
-              <div className="flex items-center gap-3">
-                 <span className="text-sm text-slate-500 hidden sm:inline">
-                    {groupedReports.length} documentos (Agrupados por CPF)
+              <div className="flex items-center gap-4">
+                 <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] hidden sm:inline">
+                    {groupedReports.length} DOCUMENTOS PROCESSADOS
                  </span>
-                 <div className="h-6 w-px bg-slate-300 hidden sm:block"></div>
+                 <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
                  
                  <button 
                   onClick={() => window.print()} 
-                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition font-medium"
+                  className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white hover:bg-slate-800 border-l-4 border-amber-500 transition-all font-black text-[10px] uppercase tracking-widest"
                 >
-                  <Printer size={18} />
-                  Imprimir Todos
+                  <Printer size={16} />
+                  Imprimir Protocolos
                 </button>
                 
                 <button 
                   onClick={handleDownloadPdf}
                   disabled={isGeneratingPdf}
-                  className="flex items-center gap-2 px-5 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 shadow-sm transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 transition-all font-black text-[10px] uppercase tracking-widest disabled:opacity-50"
                 >
-                  {isGeneratingPdf ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                  {isGeneratingPdf ? 'Gerando...' : 'PDF'}
+                  {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  {isGeneratingPdf ? 'Compilando...' : 'Exportar PDF'}
                 </button>
               </div>
             </div>
           </div>
 
           {/* Report Content Loop - Wrapped for PDF Generation */}
-          <div id="cedulas-container" className="print:w-full">
-            <style>
-              {`
-                @media print {
-                  @page { margin: 0; size: A4; }
-                  body { background: white; -webkit-print-color-adjust: exact; }
-                  .break-after-page { page-break-after: always; }
-                }
-              `}
-            </style>
-            
-            {groupedReports.map((reportData) => (
-              <SingleReportPage 
-                key={reportData.responsibleCpf} 
-                data={reportData}
-                year={currentYear} 
-              />
-            ))}
-            
-            {groupedReports.length === 0 && (
-                <div className="text-center p-12 text-slate-500">Nenhum dado selecionado.</div>
-            )}
+          <div className="overflow-x-auto pb-8 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div id="cedulas-container" className="print:w-full min-w-[210mm] mx-auto">
+              <style>
+                {`
+                  @media print {
+                    @page { margin: 0; size: A4; }
+                    body { background: white; -webkit-print-color-adjust: exact; }
+                    .break-after-page { page-break-after: always; }
+                  }
+                `}
+              </style>
+              
+              {groupedReports.map((reportData) => (
+                <SingleReportPage 
+                  key={reportData.responsibleCpf} 
+                  data={reportData}
+                  year={currentYear} 
+                />
+              ))}
+              
+              {groupedReports.length === 0 && (
+                  <div className="text-center p-12 text-slate-500">Nenhum dado selecionado.</div>
+              )}
+            </div>
           </div>
 
         </div>

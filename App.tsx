@@ -106,7 +106,9 @@ const InnerApp = () => {
         phone: n.phone,
         email: n.email,
         latitude: n.latitude, 
-        longitude: n.longitude
+        longitude: n.longitude,
+        vinculoPadrao: n.vinculo_padrao,
+        dataVinculo: n.data_vinculo
       }));
       setNotaries(mappedNotaries);
 
@@ -162,9 +164,12 @@ const InnerApp = () => {
         comarca: newPayment.comarca,
         gross_value: newPayment.grossValue,
         irrf_value: newPayment.irrfValue,
-        net_value: newPayment.netValue,
+         net_value: newPayment.netValue,
         history_type: newPayment.historyType,
-        status: newPayment.status
+        status: newPayment.status,
+        ne_empenho: newPayment.ne_empenho,
+        dl_liquidacao: newPayment.dl_liquidacao,
+        ob_ordem_bancaria: newPayment.ob_ordem_bancaria
       };
 
       const { data, error } = await supabase.from('payments').insert(dbPayment).select().single();
@@ -224,7 +229,9 @@ const InnerApp = () => {
         phone: newNotary.phone,
         email: newNotary.email,
         latitude: newNotary.latitude,
-        longitude: newNotary.longitude
+        longitude: newNotary.longitude,
+        vinculo_padrao: newNotary.vinculoPadrao,
+        data_vinculo: newNotary.dataVinculo
       };
 
       const { data, error } = await supabase.from('notaries').insert(dbNotary).select().single();
@@ -259,7 +266,9 @@ const InnerApp = () => {
         phone: updatedNotary.phone,
         email: updatedNotary.email,
         latitude: updatedNotary.latitude,
-        longitude: updatedNotary.longitude
+        longitude: updatedNotary.longitude,
+        vinculo_padrao: updatedNotary.vinculoPadrao,
+        data_vinculo: updatedNotary.dataVinculo
       };
 
       const { error } = await supabase.from('notaries').update(dbNotary).eq('id', updatedNotary.id);
@@ -314,17 +323,27 @@ const InnerApp = () => {
         onProfileUpdate={() => fetchUserProfile(session.user.id)}
       />
 
+      {/* Mobile Backdrop Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       <aside 
-        className={`${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-xl z-20 print:hidden`}
+        className={`
+          ${isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full lg:w-20 lg:translate-x-0'}
+          bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-xl 
+          fixed lg:relative inset-y-0 left-0 z-50 print:hidden overflow-hidden
+        `}
       >
         <div className="h-16 flex items-center justify-center border-b border-slate-700 relative">
           <div className="flex items-center space-x-3">
-             <img 
+              <img 
                 src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/217479058_brasao-tjpa.png" 
                 alt="Brasão TJPA" 
-                className="w-8 h-auto object-contain"
+                className="w-10 h-10 object-contain drop-shadow-md"
                 onError={(e) => {
                    (e.target as HTMLImageElement).style.display = 'none'; 
                 }}
@@ -333,38 +352,38 @@ const InnerApp = () => {
           </div>
         </div>
 
-        <nav className="flex-1 py-6 space-y-1 px-3">
-          <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={currentView === 'dashboard'} onClick={() => setCurrentView('dashboard')} isOpen={isSidebarOpen} />
-          <SidebarItem icon={<Wallet size={20} />} label="Pagamentos" active={currentView === 'payments'} onClick={() => setCurrentView('payments')} isOpen={isSidebarOpen} />
-          <SidebarItem icon={<FileText size={20} />} label="Cédula C" active={currentView === 'cedulac'} onClick={() => setCurrentView('cedulac')} isOpen={isSidebarOpen} />
+        <nav className="flex-1 py-6 space-y-1 px-3 overflow-y-auto custom-scrollbar-dark">
+          <SidebarItem icon={<LayoutDashboard size={20} />} label="Dashboard" active={currentView === 'dashboard'} onClick={() => { setCurrentView('dashboard'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} isOpen={isSidebarOpen || window.innerWidth < 1024} />
+          <SidebarItem icon={<Wallet size={20} />} label="Pagamentos" active={currentView === 'payments'} onClick={() => { setCurrentView('payments'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} isOpen={isSidebarOpen || window.innerWidth < 1024} />
+          <SidebarItem icon={<FileText size={20} />} label="Cédula C" active={currentView === 'cedulac'} onClick={() => { setCurrentView('cedulac'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} isOpen={isSidebarOpen || window.innerWidth < 1024} />
           
           {isAdmin && (
             <div className="pt-4 mt-4 border-t border-slate-700">
-               <SidebarItem icon={<Settings size={20} />} label="Configurações" active={currentView === 'settings'} onClick={() => setCurrentView('settings')} isOpen={isSidebarOpen} />
+               <SidebarItem icon={<Settings size={20} />} label="Configurações" active={currentView === 'settings'} onClick={() => { setCurrentView('settings'); if(window.innerWidth < 1024) setIsSidebarOpen(false); }} isOpen={isSidebarOpen || window.innerWidth < 1024} />
             </div>
           )}
         </nav>
 
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-700 mt-auto">
           <button 
-            onClick={() => setIsProfileModalOpen(true)}
-            className="flex items-center space-x-3 w-full hover:bg-slate-800 rounded-md p-2 transition text-left"
+            onClick={() => { setIsProfileModalOpen(true); if(window.innerWidth < 1024) setIsSidebarOpen(false); }}
+            className="flex items-center space-x-3 w-full hover:bg-slate-800 rounded-none p-2 transition text-left group"
           >
-            <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-600">
+            <div className="w-10 h-10 min-w-[40px] rounded-none bg-slate-800 flex items-center justify-center overflow-hidden border border-slate-700 group-hover:border-amber-500 transition-colors">
               {userProfile?.avatar_url ? (
                 <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <User size={20} className="text-slate-300" />
+                <User size={20} className="text-slate-500 group-hover:text-amber-500 transition-colors" />
               )}
             </div>
-            {isSidebarOpen && (
-              <div className="overflow-hidden">
-                <p className="text-sm font-medium text-white truncate">
+            {(isSidebarOpen || window.innerWidth < 1024) && (
+              <div className="overflow-hidden animate-in slide-in-from-left-2">
+                <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">
                    {userProfile?.full_name || session.user.user_metadata.full_name || 'Usuário'}
                 </p>
                 <div className="flex items-center gap-2">
-                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${isAdmin ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300'}`}>
-                      {isAdmin ? 'Admin' : 'Cartório'}
+                   <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-none uppercase tracking-widest ${isAdmin ? 'bg-amber-500 text-slate-900' : 'bg-slate-700 text-slate-400'}`}>
+                      {isAdmin ? 'Auditador' : 'Serventia'}
                    </span>
                 </div>
               </div>
@@ -374,38 +393,43 @@ const InnerApp = () => {
       </aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shadow-sm z-10 print:hidden">
-          <div className="flex items-center">
+        <header className="h-16 bg-white border-b-2 border-amber-500/10 flex items-center justify-between px-6 shadow-sm z-10 print:hidden overflow-hidden">
+          <div className="flex items-center flex-1 overflow-hidden">
             <button 
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 rounded-md hover:bg-slate-100 text-slate-600 focus:outline-none"
+              className="p-2 text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all rounded-none shrink-0"
             >
-              <Menu size={20} />
+              <Menu size={22} />
             </button>
-            <h1 className="ml-4 text-xl font-semibold text-slate-800 tracking-tight">
-              {currentView === 'dashboard' && 'Visão Geral'}
-              {currentView === 'payments' && 'Gestão de Pagamentos'}
-              {currentView === 'cedulac' && 'Comprovante de Rendimentos'}
-              {currentView === 'settings' && 'Configurações do Sistema'}
-            </h1>
+            <div className="ml-3 sm:ml-5 overflow-hidden">
+              <h1 className="text-sm sm:text-lg lg:text-xl font-black text-slate-900 tracking-tighter uppercase leading-none truncate outline-none">
+                {currentView === 'dashboard' && 'Monitoramento Global'}
+                {currentView === 'payments' && 'Conformidade de Atos'}
+                {currentView === 'cedulac' && 'Cédula C Digital'}
+                {currentView === 'settings' && 'Segurança & Parâmetros'}
+              </h1>
+              <p className="text-[8px] sm:text-[10px] text-amber-600 font-bold tracking-widest uppercase mt-0.5 truncate outline-none">TJPA | FRC 2026</p>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-slate-500 hidden sm:inline-block flex items-center gap-1">
-              {isLoadingData ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} className="text-green-500" />}
-              {isLoadingData ? 'Sincronizando...' : 'Conectado'}
-            </span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 border-l-2 ${isLoadingData ? 'border-blue-500' : 'border-amber-500'} bg-slate-50 transition-all`}>
+              <span className="text-[8px] sm:text-[10px] text-slate-400 font-black uppercase tracking-widest hidden md:inline-block">
+                {isLoadingData ? 'Sincronizando' : 'Operacional'}
+              </span>
+              <div className={`h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full ${isLoadingData ? 'bg-blue-500 animate-spin' : 'bg-amber-500 shadow-[0_0_10px_rgba(251,191,36,0.5)] animate-pulse'}`}></div>
+            </div>
             <button 
               onClick={handleLogout}
-              className="flex items-center text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md transition"
+              className="flex items-center text-[10px] sm:text-xs font-black text-red-600 hover:text-red-700 hover:bg-red-50 px-2 sm:px-3 py-1 sm:py-1.5 transition uppercase tracking-widest"
             >
-              <LogOut size={16} className="mr-1" />
-              Sair
+              <LogOut size={14} className="mr-1 sm:mr-2" />
+              <span className="hidden xs:inline">Sair</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto bg-slate-50 p-6 print:p-0 print:bg-white print:overflow-visible custom-scrollbar">
-          <div className="max-w-[1600px] mx-auto print:max-w-none print:mx-0">
+        <main className="flex-1 overflow-auto bg-slate-50 p-3 sm:p-6 print:p-0 print:bg-white print:overflow-visible custom-scrollbar">
+          <div className={`mx-auto transition-all duration-300 print:max-w-none print:mx-0 ${isSidebarOpen ? 'max-w-[1600px]' : 'w-full'}`}>
             {currentView === 'dashboard' && <Dashboard payments={payments} notaries={notaries} />}
             {currentView === 'payments' && (
               <PaymentTable 
@@ -424,10 +448,11 @@ const InnerApp = () => {
                 onDeleteNotary={handleDeleteNotary}
               />
             )}
-             {currentView === 'settings' && !isAdmin && (
+            {currentView === 'settings' && !isAdmin && (
               <div className="flex flex-col items-center justify-center h-[50vh] text-slate-500">
-                 <ShieldCheck size={48} className="mb-4 text-blue-500" />
-                 <h3 className="text-xl font-semibold text-slate-800">Acesso Restrito</h3>
+                 <ShieldCheck size={48} className="mb-4 text-amber-500" />
+                 <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Acesso Restrito</h3>
+                 <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-2">Privilégios de Auditoria Necessários</p>
               </div>
             )}
           </div>
@@ -449,13 +474,13 @@ export default function App() {
 const SidebarItem = ({ icon, label, active, onClick, isOpen }: any) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group relative
+     className={`w-full flex items-center px-3 py-2.5 rounded-none border-l-4 transition-all duration-200 group relative
       ${active 
-        ? 'bg-blue-600 text-white shadow-md' 
-        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+        ? 'bg-slate-800 border-amber-500 text-amber-500 shadow-sm' 
+        : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white'
       }`}
   >
-    <span className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>
+    <span className={`${active ? 'text-amber-500' : 'text-slate-500 group-hover:text-white'}`}>
       {icon}
     </span>
     {isOpen && (

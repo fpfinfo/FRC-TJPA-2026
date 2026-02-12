@@ -78,42 +78,42 @@ const NotarySettings: React.FC<NotarySettingsProps> = ({ notaries, onAddNotary, 
 
       {/* Tabs */}
       <div className="border-b border-slate-200 overflow-x-auto">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-12">
           <button
             onClick={() => setActiveTab('notaries')}
             className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              whitespace-nowrap pb-4 px-1 border-b-4 font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all
               ${activeTab === 'notaries'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200'}
             `}
           >
-            <Settings2 size={18} />
-            Cadastro de Cartórios
+            <Settings2 size={16} />
+            Configuração de Bases
           </button>
           <button
             onClick={() => setActiveTab('irrf')}
             className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              whitespace-nowrap pb-4 px-1 border-b-4 font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all
               ${activeTab === 'irrf'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200'}
             `}
           >
-            <Table size={18} />
+            <Table size={16} />
             Tabela Progressiva IRRF
           </button>
           <button
             onClick={() => setActiveTab('rbac')}
             className={`
-              whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+              whitespace-nowrap pb-4 px-1 border-b-4 font-black text-xs uppercase tracking-widest flex items-center gap-2 transition-all
               ${activeTab === 'rbac'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}
+                ? 'border-amber-500 text-slate-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-200'}
             `}
           >
-            <Users size={18} />
-            Gestão de Perfis (RBAC)
+            <Users size={16} />
+            Privilégios & Acessos
           </button>
         </nav>
       </div>
@@ -126,28 +126,28 @@ const NotarySettings: React.FC<NotarySettingsProps> = ({ notaries, onAddNotary, 
              <div className="flex justify-end">
                 <button 
                   onClick={() => { setNotaryToEdit(undefined); setNotaryToDuplicate(undefined); setIsModalOpen(true); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm transition text-sm font-medium"
+                  className="btn-premium-gold flex items-center gap-2"
                 >
                   <Plus size={16} />
-                  Novo Cartório
+                  Cadastrar Base
                 </button>
              </div>
 
-            <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+            <div className="bg-white border-l-4 border-amber-500 shadow-sm">
               {/* Filter Bar */}
-              <div className="p-4 border-b border-slate-200 flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+              <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center gap-4 md:gap-6 bg-slate-50/50 group">
+                <div className="relative flex-1 w-full md:max-w-md">
+                    <Search className="absolute left-3 top-3 text-slate-400 group-focus-within:text-amber-500 transition-colors" size={16} />
                     <input 
                       type="text" 
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Buscar por nome, comarca ou responsável..." 
-                      className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                      placeholder="FILTRAR POR NOME, COMARCA OU RESPONSÁVEL..." 
+                      className="w-full pl-10 pr-4 py-2.5 border-b-2 border-slate-200 focus:border-amber-500 outline-none text-[10px] font-black placeholder:text-slate-300 uppercase tracking-tight transition-all"
                     />
                 </div>
-                <div className="text-sm text-slate-500">
-                    {filteredNotaries.length} cartórios encontrados
+                <div className="text-[10px] text-amber-600 font-black uppercase tracking-widest bg-white px-4 py-2 border border-slate-100 shadow-sm w-fit self-start md:self-auto">
+                    {filteredNotaries.length} Serventias
                 </div>
               </div>
 
@@ -157,15 +157,15 @@ const NotarySettings: React.FC<NotarySettingsProps> = ({ notaries, onAddNotary, 
                   filteredNotaries.map((notary) => (
                     <div key={notary.id} className="p-4 hover:bg-slate-50 transition flex flex-col md:flex-row md:items-center gap-4">
                       <div className="flex-1">
-                        <div className="flex items-start justify-between mb-1">
-                          <h3 className="font-semibold text-slate-800 flex items-center gap-2">
-                            <Building2 size={16} className="text-blue-500" />
+                         <div className="flex items-start justify-between mb-1">
+                          <h3 className="font-black text-slate-900 flex items-center gap-2 uppercase tracking-tighter text-base">
+                            <Building2 size={18} className="text-amber-500" />
                             {notary.name}
                           </h3>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
+                          <span className={`text-[9px] font-black px-2 py-0.5 rounded-none uppercase tracking-widest border ${
                             notary.status === 'ATIVO' 
-                              ? 'bg-green-50 text-green-700 border-green-200' 
-                              : 'bg-red-50 text-red-700 border-red-200'
+                              ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                              : 'bg-slate-50 text-slate-400 border-slate-100'
                           }`}>
                             {notary.status}
                           </span>
@@ -187,24 +187,24 @@ const NotarySettings: React.FC<NotarySettingsProps> = ({ notaries, onAddNotary, 
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 md:border-l md:border-slate-100 md:pl-4">
+                      <div className="flex items-center gap-1.5 md:border-l md:border-slate-100 md:pl-5">
                         <button 
                           onClick={() => handleDuplicateClick(notary)}
-                          className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-md transition" 
+                          className="p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 transition-all" 
                           title="Duplicar"
                         >
                           <Copy size={16} />
                         </button>
                         <button 
                           onClick={() => handleEditClick(notary)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition" 
+                          className="p-2.5 text-amber-600 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-all font-bold" 
                           title="Editar"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={() => handleDeleteClick(notary.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition" 
+                          className="p-2.5 text-slate-300 hover:text-red-600 transition-all" 
                           title="Excluir"
                         >
                           <Trash2 size={16} />
