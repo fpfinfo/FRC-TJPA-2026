@@ -48,7 +48,16 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       }
     } catch (error: any) {
       console.error('Auth Error:', error);
-      setErrorMsg(error.message || 'Ocorreu um erro na autenticação.');
+      let msg = error.message || 'Ocorreu um erro na autenticação.';
+      
+      // Tradução de erros comuns do Supabase
+      if (msg.includes('User already registered')) {
+        msg = 'Este e-mail já está cadastrado. Por favor, faça login.';
+      } else if (msg.includes('Invalid login credentials')) {
+        msg = 'E-mail ou senha incorretos.';
+      }
+
+      setErrorMsg(msg);
     } finally {
       setIsLoading(false);
     }
