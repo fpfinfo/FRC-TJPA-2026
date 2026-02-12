@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { X, Calculator, Calendar, AlertTriangle, Save, Loader2 } from 'lucide-react';
+import { X, Calculator, Calendar, AlertTriangle, Save, Loader2, Info } from 'lucide-react';
 import { Payment, Notary, IRRFBracket } from '../types';
 import { calculateIRRF, formatCurrency, generateId } from '../utils';
 import { supabase } from '../supabaseClient';
@@ -8,109 +9,82 @@ interface NewPaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (payment: Payment) => void;
-  paymentToDuplicate?: Payment | null; // Added prop for duplication
+  paymentToDuplicate?: Payment | null;
   notaries: Notary[];
 }
+
+const VALOR_VIA_1 = 65.00;
+const VALOR_VIA_2 = 21.00;
 
 const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSave, paymentToDuplicate, notaries }) => {
   // Form State
   const [selectedNotaryId, setSelectedNotaryId] = useState<string>('');
   const [monthRef, setMonthRef] = useState<string>('01');
   const [yearRef, setYearRef] = useState<number>(new Date().getFullYear());
-  const [date, setDate] = useState<string>('');
-  const [grossValue, setGrossValue] = useState<string>(''); // String for input handling
-  const [historyType, setHistoryType] = useState<Payment['historyType']>('REPASSE');
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [loteType, setLoteType] = useState<'PRINCIPAL' | 'COMPLEMENTAR'>('PRINCIPAL');
+  const [genre, setGenre] = useState<Payment['genre']>('ATOS_GRATUITOS');
+  
+  // Quantidades de Vias
+  const [qtdVia1, setQtdVia1] = useState<number>(0);
+  const [qtdVia2, setQtdVia2] = useState<number>(0);
 
-  // Derived/Read-only State
+  // Derived State
   const [notaryData, setNotaryData] = useState<Notary | null>(null);
-  const [irrf, setIrrf] = useState<number>(0);
+  const [gross, setGross] = useState<number>(0);
+  const [irpf, setIrpf] = useState<number>(0);
   const [net, setNet] = useState<number>(0);
 
   // Dynamic IRRF Data
   const [currentBrackets, setCurrentBrackets] = useState<IRRFBracket[]>([]);
   const [isLoadingBrackets, setIsLoadingBrackets] = useState(false);
-  const [bracketsError, setBracketsError] = useState(false);
 
   // Initialize
   useEffect(() => {
     if (isOpen) {
       if (paymentToDuplicate) {
-        // Pre-fill data from duplicate source
         setSelectedNotaryId(paymentToDuplicate.notaryId);
         setMonthRef(paymentToDuplicate.monthReference);
         setYearRef(paymentToDuplicate.yearReference);
-        setDate(paymentToDuplicate.date); // Keep original date, user can change
-        setGrossValue(paymentToDuplicate.grossValue.toFixed(2).replace('.', ','));
-        setHistoryType(paymentToDuplicate.historyType);
-        
-        // Trigger bracket fetch for that year
-        fetchBracketsForYear(paymentToDuplicate.yearReference);
+        setLoteType(paymentToDuplicate.loteType || 'PRINCIPAL');
+        setGenre(paymentToDuplicate.genre || 'ATOS_GRATUITOS');
+        setQtdVia1(paymentToDuplicate.qtdVia1 || 0);
+        setQtdVia2(paymentToDuplicate.qtdVia2 || 0);
       } else {
-        // Reset to defaults
-        setGrossValue('');
-        setIrrf(0);
-        setNet(0);
-        setDate(new Date().toISOString().split('T')[0]);
-        
-        const currentY = new Date().getFullYear();
-        setYearRef(currentY);
-        setMonthRef(String(new Date().getMonth() + 1).padStart(2, '0'));
-        
+        setQtdVia1(0);
+        setQtdVia2(0);
         setSelectedNotaryId('');
-        setNotaryData(null);
-        setHistoryType('REPASSE');
-        
-        // Load initial brackets for current year
-        fetchBracketsForYear(currentY);
       }
     }
   }, [isOpen, paymentToDuplicate]);
 
-  // Handle Notary Selection & Auto-fill
+  // Sync Notary Data
   useEffect(() => {
     const notary = notaries.find(n => n.id === selectedNotaryId);
     setNotaryData(notary || null);
   }, [selectedNotaryId, notaries]);
 
-  // Fetch Brackets when Year Changes
+  // Fetch Brackets for current year
   useEffect(() => {
-    if (isOpen && yearRef > 2000) {
-      const debounceTimer = setTimeout(() => {
-        fetchBracketsForYear(yearRef);
-      }, 500); // Small delay to avoid fetching while typing
-      return () => clearTimeout(debounceTimer);
-    }
+    if (isOpen) fetchBracketsForYear(yearRef);
   }, [yearRef, isOpen]);
 
   const fetchBracketsForYear = async (year: number) => {
     setIsLoadingBrackets(true);
-    setBracketsError(false);
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('irrf_brackets')
         .select('*')
         .eq('year', year)
         .order('min_value', { ascending: true });
 
-      if (error) throw error;
-
       if (data && data.length > 0) {
-        const mapped: IRRFBracket[] = data.map((b: any) => ({
-          id: b.id,
-          min: b.min_value,
-          max: b.max_value,
-          rate: b.rate,
-          deduction: b.deduction
-        }));
-        setCurrentBrackets(mapped);
-      } else {
-        setCurrentBrackets([]);
-        setBracketsError(true);
+        setCurrentBrackets(data.map((b: any) => ({
+          id: b.id, min: b.min_value, max: b.max_value, rate: b.rate, deduction: b.deduction
+        })));
       }
     } catch (err) {
-      console.error("Error fetching brackets:", err);
-      setCurrentBrackets([]);
-      setBracketsError(true);
+      console.error(err);
     } finally {
       setIsLoadingBrackets(false);
     }
@@ -118,18 +92,23 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
 
   // Real-time calculation
   useEffect(() => {
-    const gross = parseFloat(grossValue.replace(',', '.')) || 0;
+    const totalBruto = (qtdVia1 * VALOR_VIA_1) + (qtdVia2 * VALOR_VIA_2);
+    setGross(totalBruto);
     
-    // Use the dynamic brackets fetched from DB
-    const calcIrrf = calculateIRRF(gross, currentBrackets);
-    
-    setIrrf(calcIrrf);
-    setNet(gross - calcIrrf);
-  }, [grossValue, currentBrackets]);
+    const calcIrpf = calculateIRRF(totalBruto, currentBrackets);
+    setIrpf(calcIrpf);
+    setNet(totalBruto - calcIrpf);
+  }, [qtdVia1, qtdVia2, currentBrackets]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!notaryData) return;
+
+    const historyTypeMap: Record<string, Payment['historyType']> = {
+      'ATOS_GRATUITOS': 'REPASSE',
+      'RENDA_MINIMA': 'RENDA MINIMA',
+      'AJUDA_CUSTO': 'AJUDA DE CUSTO'
+    };
 
     const newPayment: Payment = {
       id: generateId(),
@@ -139,14 +118,21 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
       code: notaryData.code,
       cpf: notaryData.responsibleCpf,
       comarca: notaryData.comarca,
+      municipality: notaryData.city,
       date: date,
       monthReference: monthRef,
       yearReference: yearRef,
-      grossValue: parseFloat(grossValue.replace(',', '.')) || 0,
-      irrfValue: irrf,
+      grossValue: gross,
+      irrfValue: irpf,
       netValue: net,
-      historyType: historyType,
-      status: 'EM ANDAMENTO' // Fase 1: Status inicial
+      historyType: historyTypeMap[genre || 'ATOS_GRATUITOS'],
+      status: 'EM ANDAMENTO',
+      qtdVia1,
+      valVia1: VALOR_VIA_1,
+      qtdVia2,
+      valVia2: VALOR_VIA_2,
+      loteType,
+      genre
     };
 
     onSave(newPayment);
@@ -156,210 +142,177 @@ const NewPaymentModal: React.FC<NewPaymentModalProps> = ({ isOpen, onClose, onSa
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-all">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-in fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white sticky top-0 z-10">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
           <div>
-             <h3 className="text-xl font-bold text-slate-800">
-               {paymentToDuplicate ? 'Duplicar Pagamento' : 'Novo Pagamento'}
-             </h3>
-             <p className="text-sm text-slate-500">
-               {paymentToDuplicate 
-                 ? 'Revise os dados duplicados e ajuste a competência se necessário.' 
-                 : 'Preencha os dados abaixo para lançar um novo repasse.'}
-             </p>
+             <h3 className="text-xl font-black text-slate-800 tracking-tight">Novo Pagamento de Atos</h3>
+             <p className="text-xs text-slate-500 font-medium">Preencha as quantidades para o cálculo automático do repasse.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition">
-            <X size={24} />
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-200 transition">
+            <X size={20} />
           </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="overflow-y-auto p-6 bg-slate-50">
-          <form id="payment-form" onSubmit={handleSubmit} className="space-y-6">
+        {/* Content */}
+        <div className="overflow-y-auto p-6 bg-white space-y-6">
+          <form id="payment-form" onSubmit={handleSubmit} className="space-y-8">
             
-            {/* Section 1: Basic Info */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-               <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Ano Ref.</label>
-                  <input 
-                    type="number" 
-                    min="2000"
-                    max="2099"
-                    value={yearRef}
-                    onChange={(e) => setYearRef(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 bg-white"
-                  />
-               </div>
-               
-               <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Mês Ref.</label>
-                  <input 
-                    type="text" 
-                    maxLength={2}
-                    value={monthRef}
-                    onChange={(e) => setMonthRef(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-slate-800 bg-white"
-                    placeholder="01"
-                  />
-               </div>
-
-               <div className="md:col-span-8 space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Responsável <span className="text-red-500">*</span></label>
-                  <select 
-                    required
-                    value={selectedNotaryId}
-                    onChange={(e) => setSelectedNotaryId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white text-slate-800"
-                  >
-                    <option value="">Selecione o cartorário...</option>
-                    {notaries.map(notary => (
-                      <option key={notary.id} value={notary.id}>
-                        {notary.responsibleName} - {notary.name}
-                      </option>
-                    ))}
-                  </select>
-               </div>
-            </div>
-
-            {/* Section 2: Details (Auto-filled) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">CPF <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    readOnly
-                    value={notaryData?.responsibleCpf || ''}
-                    className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-md text-slate-500 cursor-not-allowed"
-                    placeholder="000.000.000-00"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Cartório <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    readOnly
-                    value={notaryData?.name || ''}
-                    className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-md text-slate-500 cursor-not-allowed"
-                  />
-                </div>
-            </div>
-
-            {/* Section 3: Calculation Box */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 transition-colors">
-              <div className="flex items-center justify-between mb-4">
-                 <div className="flex items-center gap-2 text-blue-800">
-                    <Calculator size={20} />
-                    <h4 className="font-bold text-base">Cálculo de IRRF ({yearRef})</h4>
-                 </div>
-                 <div className="text-xs">
-                    {isLoadingBrackets ? (
-                      <span className="flex items-center gap-1 text-blue-600"><Loader2 size={12} className="animate-spin"/> Buscando tabela...</span>
-                    ) : bracketsError ? (
-                      <span className="flex items-center gap-1 text-red-600 font-bold bg-red-100 px-2 py-1 rounded"><AlertTriangle size={12}/> Tabela {yearRef} não encontrada!</span>
-                    ) : (
-                      <span className="text-green-700 font-medium bg-green-100 px-2 py-1 rounded">Tabela Vigente Carregada</span>
-                    )}
-                 </div>
+            {/* Contexto do Lote */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Tipo de Lote</label>
+                <select 
+                  value={loteType}
+                  onChange={(e) => setLoteType(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="PRINCIPAL">Principal</option>
+                  <option value="COMPLEMENTAR">Complementar</option>
+                </select>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-1.5">
-                   <label className="text-sm font-medium text-slate-700">Valor Repassado (R$)</label>
-                   <input 
-                    type="number"
-                    step="0.01"
-                    required
-                    value={grossValue}
-                    onChange={(e) => setGrossValue(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none text-slate-900 font-medium bg-white"
-                   />
-                </div>
-
-                <div className="space-y-1.5">
-                   <label className="text-sm font-medium text-slate-700">IRRF Retido (R$)</label>
-                   <input 
-                    type="text"
-                    readOnly
-                    value={grossValue ? formatCurrency(irrf).replace('R$', '').trim() : '0,00'}
-                    className={`w-full px-3 py-2 border rounded-md text-slate-600 bg-red-50 border-red-100 font-medium ${irrf > 0 ? 'text-red-600' : ''}`}
-                   />
-                </div>
-
-                 <div className="space-y-1.5">
-                   <label className="text-sm font-medium text-slate-700">Valor Líquido (R$)</label>
-                   <input 
-                    type="text"
-                    readOnly
-                    value={grossValue ? formatCurrency(net).replace('R$', '').trim() : '0,00'}
-                    className="w-full px-3 py-2 border rounded-md bg-green-50 border-green-100 font-bold text-green-700"
-                   />
+              <div className="md:col-span-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Gênero</label>
+                <select 
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value as any)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none font-bold"
+                >
+                  <option value="ATOS_GRATUITOS">Atos Gratuitos</option>
+                  <option value="RENDA_MINIMA">Renda Mínima</option>
+                  <option value="AJUDA_CUSTO">Ajuda de Custos</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mês/Ano</label>
+                <div className="flex gap-2">
+                  <input type="text" value={monthRef} onChange={e => setMonthRef(e.target.value)} maxLength={2} className="w-12 text-center px-2 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <input type="number" value={yearRef} onChange={e => setYearRef(parseInt(e.target.value))} className="w-full px-2 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
-              
-              {bracketsError && (
-                 <p className="mt-2 text-xs text-red-600">
-                   Atenção: Não há faixas de IRRF cadastradas para {yearRef}. O imposto será calculado como R$ 0,00. Vá em Configurações para adicionar.
-                 </p>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Data Lançamento</label>
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+
+            {/* Identificação do Cartório */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Cartório / Responsável</label>
+                <select 
+                  required
+                  value={selectedNotaryId}
+                  onChange={(e) => setSelectedNotaryId(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="">Selecione o cartório...</option>
+                  {notaries.map(n => <option key={n.id} value={n.id}>{n.name} ({n.responsibleName})</option>)}
+                </select>
+              </div>
+              {notaryData && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs animate-in slide-in-from-top-2">
+                  <div className="flex gap-2 p-2 bg-white rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-400">CPF:</span>
+                    <span className="text-slate-700 font-mono">{notaryData.responsibleCpf}</span>
+                  </div>
+                  <div className="flex gap-2 p-2 bg-white rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-400">CNS:</span>
+                    <span className="text-slate-700 font-mono">{notaryData.ensCode}</span>
+                  </div>
+                  <div className="flex gap-2 p-2 bg-white rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-400">Município:</span>
+                    <span className="text-slate-700">{notaryData.city}</span>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Section 4: History and Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Histórico</label>
-                  <select 
-                    value={historyType}
-                    onChange={(e) => setHistoryType(e.target.value as any)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-800"
-                  >
-                    <option value="AJUDA DE CUSTO">AJUDA DE CUSTO</option>
-                    <option value="DEA">DEA</option>
-                    <option value="MESES ANTERIORES">MESES ANTERIORES</option>
-                    <option value="RENDA MINIMA">RENDA MINIMA</option>
-                    <option value="REPASSE">REPASSE</option>
-                    <option value="COMPLEMENTAÇÃO">COMPLEMENTAÇÃO</option>
-                  </select>
-               </div>
-
-               <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-slate-700">Data de Pagamento</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                    <input 
-                      type="date"
-                      required
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-800"
-                    />
+            {/* Planilha de Atos */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <h4 className="text-xs font-black text-slate-800 uppercase flex items-center gap-2">
+                  <Calculator size={14} className="text-blue-600" />
+                  Discriminação de Atos
+                </h4>
+                
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Atos 1ª Via</p>
+                      <p className="text-[10px] text-slate-500">Valor Unit: R$ 65,00</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={qtdVia1}
+                        onChange={e => setQtdVia1(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-20 px-2 py-1.5 border border-slate-300 rounded-lg text-center font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
                   </div>
-               </div>
-            </div>
 
+                  <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">Atos 2ª Via</p>
+                      <p className="text-[10px] text-slate-500">Valor Unit: R$ 21,00</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="number" 
+                        min="0"
+                        value={qtdVia2}
+                        onChange={e => setQtdVia2(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="w-20 px-2 py-1.5 border border-slate-300 rounded-lg text-center font-bold text-blue-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quadro de Resumo Financeiro */}
+              <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+                <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-6 flex items-center gap-2">
+                  <Info size={12} />
+                  Resumo de Valores
+                </h4>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <span className="text-sm text-slate-400">Total Bruto</span>
+                    <span className="text-lg font-bold">{formatCurrency(gross)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-400">Imposto (IRPF)</span>
+                      {isLoadingBrackets && <Loader2 size={12} className="animate-spin text-slate-500" />}
+                    </div>
+                    <span className="text-lg font-bold text-red-400">-{formatCurrency(irpf)}</span>
+                  </div>
+                  <div className="pt-2">
+                    <span className="text-[10px] text-slate-500 uppercase block mb-1">Total Líquido</span>
+                    <span className="text-3xl font-black text-green-400 tracking-tight">{formatCurrency(net)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </form>
         </div>
 
-        {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-white flex justify-end gap-3 sticky bottom-0 z-10">
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-slate-600 font-bold hover:bg-slate-200 rounded-lg transition">Cancelar</button>
           <button 
-            type="button" 
-            onClick={onClose}
-            className="px-5 py-2 text-slate-700 font-medium hover:bg-slate-100 rounded-md transition border border-slate-200"
-          >
-            Cancelar
-          </button>
-          <button 
-            type="submit"
+            type="submit" 
             form="payment-form"
-            className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 shadow-sm transition flex items-center gap-2"
+            className="px-8 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-lg shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
           >
             <Save size={18} />
-            {paymentToDuplicate ? 'Salvar Novo' : 'Salvar'}
+            Lançar Pagamento
           </button>
         </div>
 

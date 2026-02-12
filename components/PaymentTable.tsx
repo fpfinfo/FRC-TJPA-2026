@@ -1,13 +1,11 @@
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Payment, Notary } from '../types';
-import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertCircle, Copy, AlertOctagon, Clock, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, Plus, FileDown, Edit2, Trash2, ChevronLeft, ChevronRight, X, Upload, Loader2, CheckCircle, AlertOctagon, Clock, Copy, ChevronDown, ListFilter } from 'lucide-react';
 import { formatCurrency, formatDate, generateId } from '../utils';
 import NewPaymentModal from './NewPaymentModal';
 import StatusAuditModal from './StatusAuditModal';
 import { useToast } from './ui/ToastContext';
-
-// Declare html2pdf for TypeScript
-declare var html2pdf: any;
 
 interface PaymentTableProps {
   payments: Payment[];
@@ -16,328 +14,78 @@ interface PaymentTableProps {
   onUpdatePaymentStatus: (id: string, status: Payment['status'], reason?: string) => void;
 }
 
+type Genre = 'ATOS_GRATUITOS' | 'RENDA_MINIMA' | 'AJUDA_CUSTO';
+type SubTab = 'REPASSE' | 'DEA' | 'MESES_ANTERIORES';
+
 const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPayment, onUpdatePaymentStatus }) => {
   const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeGenre, setActiveGenre] = useState<Genre>('ATOS_GRATUITOS');
+  const [activeSubTab, setActiveSubTab] = useState<SubTab>('REPASSE');
   
-  // State for duplication
+  // Filtros
+  const [searchGlobal, setSearchGlobal] = useState('');
+  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterComarca, setFilterComarca] = useState('');
+  const [filterCartorio, setFilterCartorio] = useState('');
+  const [filterLote, setFilterLote] = useState('');
+
+  // Estados de Auditoria e Duplicação
   const [paymentToDuplicate, setPaymentToDuplicate] = useState<Payment | null>(null);
-  
-  // State for Audit
   const [paymentToAudit, setPaymentToAudit] = useState<Payment | null>(null);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
-  
-  // Advanced Filter States (UI - Buffered)
-  const [filters, setFilters] = useState({
-    searchGlobal: '',
-    month: '',
-    year: '',
-    comarca: '',
-    notary: '',
-    history: '',
-    cpf: '',
-    dateStart: '',
-    dateEnd: '',
-    valueMin: '',
-    valueMax: ''
-  });
 
-  // Applied Filters (Active Logic)
-  const [appliedFilters, setAppliedFilters] = useState(filters);
-
-  // Sorting State
-  const [sortConfig, setSortConfig] = useState<{ key: keyof Payment; direction: 'asc' | 'desc' } | null>(null);
-
-  // Data for Selects
-  const months = useMemo(() => Array.from(new Set(payments.map(p => p.monthReference))).sort(), [payments]);
-  const years = useMemo(() => Array.from(new Set(payments.map(p => p.yearReference))).sort(), [payments]);
-  const comarcas = useMemo(() => Array.from(new Set(payments.map(p => p.comarca))).sort(), [payments]);
-  const cartorios = useMemo(() => Array.from(new Set(payments.map(p => p.notaryName))).sort(), [payments]);
-  const historyTypes = ['AJUDA DE CUSTO', 'DEA', 'MESES ANTERIORES', 'RENDA MINIMA', 'REPASSE', 'COMPLEMENTAÇÃO'];
-
-  // Helper to parse currency string "R$ 1.000,00" or simple "1000" to float
-  const parseValue = (val: string) => {
-    if (!val) return null;
-    return parseFloat(val.replace(/[^\d,-]/g, '').replace(',', '.'));
-  };
-
-  // Filter Logic
+  // Lógica de Filtragem
   const filteredPayments = useMemo(() => {
-    let result = payments.filter(p => {
-      const { searchGlobal, month, year, comarca, notary, history, cpf, dateStart, dateEnd, valueMin, valueMax } = appliedFilters;
+    return payments.filter(p => {
+      // Filtro de Gênero e Sub-aba (para Atos Gratuitos)
+      if (activeGenre === 'ATOS_GRATUITOS') {
+        const historyMatch = 
+          (activeSubTab === 'REPASSE' && p.historyType === 'REPASSE') ||
+          (activeSubTab === 'DEA' && p.historyType === 'DEA') ||
+          (activeSubTab === 'MESES_ANTERIORES' && p.historyType === 'MESES ANTERIORES');
+        if (!historyMatch) return false;
+      } else if (activeGenre === 'RENDA_MINIMA') {
+        if (p.historyType !== 'RENDA MINIMA') return false;
+      } else if (activeGenre === 'AJUDA_CUSTO') {
+        if (p.historyType !== 'AJUDA DE CUSTO') return false;
+      }
 
-      // Global Search
       const globalLower = searchGlobal.toLowerCase();
-      const matchesGlobal = 
-        !searchGlobal || 
+      const matchesGlobal = !searchGlobal || 
         p.notaryName.toLowerCase().includes(globalLower) || 
-        p.comarca.toLowerCase().includes(globalLower) ||
-        p.responsibleName.toLowerCase().includes(globalLower);
+        p.responsibleName.toLowerCase().includes(globalLower) ||
+        p.comarca.toLowerCase().includes(globalLower);
 
-      // Extract Matches
-      const matchesMonth = !month || p.monthReference === month;
-      const matchesYear = !year || p.yearReference.toString() === year;
-      const matchesComarca = !comarca || p.comarca === comarca;
-      const matchesNotary = !notary || p.notaryName === notary;
-      const matchesHistory = !history || p.historyType === history;
-      const matchesCpf = !cpf || p.cpf.includes(cpf);
-      
-      // Wrapper for existing date string YYYY-MM-DD
-      const matchesDateStart = !dateStart || p.date >= dateStart;
-      const matchesDateEnd = !dateEnd || p.date <= dateEnd;
-      
-      const minVal = parseValue(valueMin);
-      const maxVal = parseValue(valueMax);
-      
-      const matchesMinVal = minVal === null || p.netValue >= minVal;
-      const matchesMaxVal = maxVal === null || p.netValue <= maxVal;
+      const matchesYear = !filterYear || p.yearReference.toString() === filterYear;
+      const matchesMonth = !filterMonth || p.monthReference === filterMonth;
+      const matchesComarca = !filterComarca || p.comarca === filterComarca;
+      const matchesCartorio = !filterCartorio || p.notaryName === filterCartorio;
+      const matchesLote = !filterLote || p.loteType === filterLote;
 
-      return matchesGlobal && matchesMonth && matchesYear && matchesComarca && matchesNotary && 
-             matchesHistory && matchesCpf && matchesDateStart && matchesDateEnd && matchesMinVal && matchesMaxVal;
+      return matchesGlobal && matchesYear && matchesMonth && matchesComarca && matchesCartorio && matchesLote;
     });
+  }, [payments, activeGenre, activeSubTab, searchGlobal, filterYear, filterMonth, filterComarca, filterCartorio, filterLote]);
 
-    if (sortConfig !== null) {
-      result.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === 'asc' ? 1 : -1;
-        }
-        return 0;
-      });
-    }
-
-    return result;
-  }, [payments, appliedFilters, sortConfig]);
-
-  const requestSort = (key: keyof Payment) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const handleApplyFilters = () => {
-    setAppliedFilters(filters);
-  };
-
-  const clearFilters = () => {
-    const emptyFilters = {
-      searchGlobal: '',
-      month: '',
-      year: '',
-      comarca: '',
-      notary: '',
-      history: '',
-      cpf: '',
-      dateStart: '',
-      dateEnd: '',
-      valueMin: '',
-      valueMax: ''
-    };
-    setFilters(emptyFilters);
-    setAppliedFilters(emptyFilters);
-  };
-  
-  const handleFilterChange = (key: keyof typeof filters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  // --- DUPLICATE FUNCTIONALITY ---
-  const handleDuplicateClick = (payment: Payment) => {
-    setPaymentToDuplicate(payment);
-    setIsModalOpen(true);
-  };
-
-  // --- AUDIT STATUS FUNCTIONALITY ---
   const handleAuditClick = (payment: Payment) => {
     setPaymentToAudit(payment);
     setIsAuditModalOpen(true);
   };
 
-  const handleSaveAudit = (paymentId: string, status: Payment['status'], reason?: string) => {
-    onUpdatePaymentStatus(paymentId, status, reason);
-  };
-
-  // --- EXPORT CSV FUNCTIONALITY ---
-  const handleExportCSV = () => {
-    // Headers matching the Payment interface + display names
-    const headers = [
-      "ID", "Mês Ref", "Ano Ref", "Data Pagamento", "Responsável", "CPF", 
-      "Cartório", "Cód", "Comarca", "Histórico", 
-      "Valor Bruto", "IRRF", "Valor Líquido", "Status", "Motivo Pendência"
-    ];
-
-    // Map data to rows
-    const rows = filteredPayments.map(p => [
-      p.id,
-      p.monthReference,
-      p.yearReference,
-      p.date,
-      `"${p.responsibleName}"`, // Quote strings that might contain commas
-      p.cpf,
-      `"${p.notaryName}"`,
-      p.code,
-      p.comarca,
-      p.historyType,
-      p.grossValue.toFixed(2),
-      p.irrfValue.toFixed(2),
-      p.netValue.toFixed(2),
-      p.status,
-      p.status === 'PENDENTE' ? `"${p.pendingReason || ''}"` : ''
-    ]);
-
-    // Construct CSV String with BOM for Excel compatibility
-    const csvContent = [
-      headers.join(';'), 
-      ...rows.map(row => row.join(';'))
-    ].join('\n');
-    
-    const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `TJPA-FRC_Pagamentos_Export_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // --- EXPORT PDF FUNCTIONALITY ---
-  const handleExportPDF = async () => {
-    const element = document.getElementById('printable-table-container');
-    if (!element || typeof html2pdf === 'undefined') {
-      alert('Erro ao gerar PDF: Elemento não encontrado ou biblioteca ausente.');
-      return;
-    }
-
-    setIsExportingPdf(true);
-
-    const opt = {
-      margin: 10,
-      filename: `Relatorio_Pagamentos_${new Date().toISOString().slice(0,10)}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-    };
-
-    try {
-      // Temporarily show the full table container for capture if it was hidden or constrained
-      await html2pdf().set(opt).from(element).save();
-    } catch (error) {
-      console.error(error);
-      alert('Erro ao exportar PDF.');
-    } finally {
-      setIsExportingPdf(false);
-    }
-  };
-
-  // --- IMPORT FUNCTIONALITY ---
-  const handleImportClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''; // Reset
-      fileInputRef.current.click();
-    }
-  };
-
-  const processImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setIsImporting(true);
-    const reader = new FileReader();
-
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split('\n');
-        
-        // Remove headers and empty lines
-        const dataLines = lines.slice(1).filter(line => line.trim() !== '');
-        
-        let successCount = 0;
-
-        dataLines.forEach(line => {
-          // Simple CSV parser assuming semi-colon delimiter (matching our export)
-          // Removing quotes if present
-          const cols = line.split(';').map(c => c.trim().replace(/^"|"$/g, ''));
-          
-          if (cols.length >= 13) {
-             // Create Payment Object
-             const newPayment: Payment = {
-               id: generateId(),
-               monthReference: cols[1] || '01',
-               yearReference: parseInt(cols[2]) || new Date().getFullYear(),
-               date: cols[3] || new Date().toISOString().split('T')[0],
-               responsibleName: cols[4] || 'Importado',
-               cpf: cols[5] || '',
-               notaryName: cols[6] || 'Cartório Importado',
-               code: cols[7] || '',
-               comarca: cols[8] || '',
-               historyType: (cols[9] as any) || 'REPASSE',
-               grossValue: parseFloat(cols[10]) || 0,
-               irrfValue: parseFloat(cols[11]) || 0,
-               netValue: parseFloat(cols[12]) || 0,
-               status: 'PAGO', // Importados assumem PAGO ou EM ANDAMENTO? Assumindo PAGO por histórico.
-               notaryId: 'imported-' + generateId() // Placeholder logic
-             };
-             
-             onAddPayment(newPayment);
-             successCount++;
-          }
-        });
-
-        alert(`${successCount} registros importados com sucesso!`);
-
-      } catch (error) {
-        console.error('Erro na importação:', error);
-        alert('Erro ao processar arquivo. Verifique se o formato é CSV separado por ponto e vírgula.');
-      } finally {
-        setIsImporting(false);
-      }
-    };
-
-    reader.readAsText(file);
-  };
-
-  const getStatusBadge = (status: Payment['status'], reason?: string) => {
+  const getStatusBadge = (status: Payment['status']) => {
     switch (status) {
       case 'PAGO':
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">
-            <CheckCircle size={12} /> Pago
-          </span>
-        );
+        return <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200 uppercase"><CheckCircle size={10} /> Pago</span>;
       case 'PENDENTE':
-        return (
-          <div className="flex flex-col items-start gap-1 group relative">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200 cursor-help">
-              <AlertOctagon size={12} /> Pendente
-            </span>
-            {reason && (
-              <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition pointer-events-none z-50">
-                {reason}
-              </div>
-            )}
-          </div>
-        );
-      case 'EM ANDAMENTO':
+        return <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 uppercase"><AlertOctagon size={10} /> Pendente</span>;
       default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-            <Clock size={12} /> Em Andamento
-          </span>
-        );
+        return <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200 uppercase"><Clock size={10} /> Em Andamento</span>;
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <NewPaymentModal 
         isOpen={isModalOpen} 
         onClose={() => { setIsModalOpen(false); setPaymentToDuplicate(null); }} 
@@ -349,303 +97,201 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
       <StatusAuditModal 
         isOpen={isAuditModalOpen}
         onClose={() => { setIsAuditModalOpen(false); setPaymentToAudit(null); }}
-        onSave={handleSaveAudit}
+        onSave={(id, status, reason) => onUpdatePaymentStatus(id, status, reason)}
         payment={paymentToAudit}
       />
-      
-      {/* Hidden File Input for Import */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={processImportFile} 
-        accept=".csv" 
-        className="hidden" 
-      />
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      {/* Título e Ação Primária */}
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Pagamentos</h2>
-          <p className="text-slate-500 mt-1">{filteredPayments.length} registros encontrados</p>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Gestão de Pagamentos</h2>
+          <p className="text-sm text-slate-500">Controle e auditoria de ressarcimentos e repasses.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-           <button 
-             onClick={handleExportCSV}
-             className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 shadow-sm transition text-sm font-medium"
-           >
-            <FileDown size={16} />
-            Exportar CSV
-          </button>
-           <button 
-             onClick={handleExportPDF}
-             disabled={isExportingPdf}
-             className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 shadow-sm transition text-sm font-medium disabled:opacity-50"
-           >
-            {isExportingPdf ? <Loader2 size={16} className="animate-spin"/> : <FileDown size={16} />}
-            Exportar PDF
-          </button>
-           <button 
-             onClick={handleImportClick}
-             disabled={isImporting}
-             className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 shadow-sm transition text-sm font-medium disabled:opacity-50"
-           >
-            {isImporting ? <Loader2 size={16} className="animate-spin"/> : <Upload size={16} />}
-            Importar
-          </button>
-          <button 
-            onClick={() => { setPaymentToDuplicate(null); setIsModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-sm transition text-sm font-medium ml-2"
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-sm transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <Plus size={18} />
+          Novo Pagamento
+        </button>
+      </div>
+
+      {/* Navegação por Gêneros */}
+      <div className="flex border-b border-slate-200">
+        <GenreTab 
+          label="Atos Gratuitos" 
+          active={activeGenre === 'ATOS_GRATUITOS'} 
+          onClick={() => setActiveGenre('ATOS_GRATUITOS')} 
+        />
+        <GenreTab 
+          label="Renda Mínima" 
+          active={activeGenre === 'RENDA_MINIMA'} 
+          onClick={() => setActiveGenre('RENDA_MINIMA')} 
+        />
+        <GenreTab 
+          label="Ajuda de Custos" 
+          active={activeGenre === 'AJUDA_CUSTO'} 
+          onClick={() => setActiveGenre('AJUDA_CUSTO')} 
+        />
+      </div>
+
+      {/* Sub-navegação interna (Apenas para Atos Gratuitos) */}
+      {activeGenre === 'ATOS_GRATUITOS' && (
+        <div className="flex gap-4 items-center">
+          <SubTabItem 
+            label="Repasse" 
+            active={activeSubTab === 'REPASSE'} 
+            onClick={() => setActiveSubTab('REPASSE')} 
+          />
+          <SubTabItem 
+            label="DEA" 
+            active={activeSubTab === 'DEA'} 
+            onClick={() => setActiveSubTab('DEA')} 
+          />
+          <SubTabItem 
+            label="Meses Anteriores" 
+            active={activeSubTab === 'MESES_ANTERIORES'} 
+            onClick={() => setActiveSubTab('MESES_ANTERIORES')} 
+          />
+        </div>
+      )}
+
+      {/* Área de Filtros */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="md:col-span-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Pesquisa</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
+            <input 
+              type="text" 
+              placeholder="Nome, Cartório, Comarca..." 
+              value={searchGlobal}
+              onChange={(e) => setSearchGlobal(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Ano</label>
+          <select 
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           >
-            <Plus size={16} />
-            Novo Pagamento
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mês</label>
+          <select 
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="">Todos</option>
+            {['01','02','03','04','05','06','07','08','09','10','11','12'].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Tipo Lote</label>
+          <select 
+            value={filterLote}
+            onChange={(e) => setFilterLote(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          >
+            <option value="">Ambos</option>
+            <option value="PRINCIPAL">Principal</option>
+            <option value="COMPLEMENTAR">Complementar</option>
+          </select>
+        </div>
+        <div className="flex items-end">
+          <button 
+            onClick={() => {
+              setSearchGlobal('');
+              setFilterMonth('');
+              setFilterLote('');
+              setFilterComarca('');
+            }}
+            className="w-full px-4 py-2 text-slate-500 hover:text-slate-800 text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <X size={16} /> Limpar
           </button>
         </div>
       </div>
 
-      {/* Advanced Filter Panel */}
-      <div className="bg-white p-5 rounded-lg shadow-sm border border-slate-200">
-        <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold">
-          <Filter size={18} />
-          <h3>Filtros de Pesquisa</h3>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          {/* Row 1 */}
-          {/* Row 1 */}
-          {/* Row 1 */}
-          <div className="md:col-span-5">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Pesquisa Global</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                value={filters.searchGlobal}
-                onChange={(e) => handleFilterChange('searchGlobal', e.target.value)}
-                placeholder="Buscar por nome, cartório, comarca..." 
-                className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-              />
-            </div>
-          </div>
-          <div className="md:col-span-2">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Ano</label>
-             <select 
-              value={filters.year}
-              onChange={(e) => handleFilterChange('year', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-            >
-              <option value="">Todos</option>
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div className="md:col-span-2">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Mês</label>
-             <select 
-              value={filters.month}
-              onChange={(e) => handleFilterChange('month', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-            >
-              <option value="">Todos</option>
-              {months.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-           <div className="md:col-span-3">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Comarca</label>
-             <select 
-              value={filters.comarca}
-              onChange={(e) => handleFilterChange('comarca', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-            >
-              <option value="">Todas</option>
-              {comarcas.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-
-          {/* Row 2 */}
-          <div className="md:col-span-4">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Cartório</label>
-             <select 
-              value={filters.notary}
-              onChange={(e) => handleFilterChange('notary', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-            >
-              <option value="">Todos os cartórios</option>
-              {cartorios.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="md:col-span-4">
-             <label className="block text-xs font-medium text-slate-500 mb-1">Histórico (múltipla seleção)</label>
-             <select 
-              value={filters.history}
-              onChange={(e) => handleFilterChange('history', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-            >
-              <option value="">Todos os tipos</option>
-              {historyTypes.map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-          </div>
-          <div className="md:col-span-4">
-            <label className="block text-xs font-medium text-slate-500 mb-1">CPF</label>
-            <input 
-                type="text" 
-                value={filters.cpf}
-                onChange={(e) => handleFilterChange('cpf', e.target.value)}
-                placeholder="000.000.000-00" 
-                className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900"
-              />
-          </div>
-
-          {/* Row 3 - Dates and Buttons */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Data Inicial</label>
-            <input 
-              type="date" 
-              value={filters.dateStart}
-              onChange={(e) => handleFilterChange('dateStart', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" 
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Data Final</label>
-            <input 
-              type="date" 
-              value={filters.dateEnd}
-              onChange={(e) => handleFilterChange('dateEnd', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none text-slate-500 bg-white" 
-            />
-          </div>
-           <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Valor Mínimo</label>
-            <input 
-              type="text" 
-              value={filters.valueMin}
-              onChange={(e) => handleFilterChange('valueMin', e.target.value)}
-              placeholder="R$ 0,00" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" 
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs font-medium text-slate-500 mb-1">Valor Máximo</label>
-            <input 
-              type="text" 
-              value={filters.valueMax}
-              onChange={(e) => handleFilterChange('valueMax', e.target.value)}
-              placeholder="R$ 999.999,99" 
-              className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none bg-white text-slate-900" 
-            />
-          </div>
-          
-          <div className="md:col-span-4 flex items-end justify-end gap-2">
-             <button 
-              onClick={clearFilters}
-              className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium flex items-center gap-1 hover:bg-slate-100 rounded-md transition"
-             >
-               <X size={16} /> Limpar Todos
-             </button>
-             <button 
-              onClick={handleApplyFilters}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition"
-             >
-               Aplicar Filtros
-             </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Table - ID added for PDF generation */}
-      <div id="printable-table-container" className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        {/* Print Header - Visible only in PDF via logic or print media query */}
-        <div className="hidden print:block p-4 border-b border-slate-200 text-center">
-           <h1 className="text-xl font-bold">Relatório de Pagamentos TJPA-FRC</h1>
-           <p className="text-sm text-slate-500">Gerado em {new Date().toLocaleDateString()}</p>
-        </div>
-
+      {/* Tabela Principal */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                {[
-                  { key: 'status', label: 'Status' },
-                  { key: 'monthReference', label: 'Mês' },
-                  { key: 'responsibleName', label: 'Responsável' },
-                  { key: 'cpf', label: 'CPF' },
-                  { key: 'notaryName', label: 'Cartório' },
-                  { key: 'code', label: 'Cód' },
-                  { key: 'comarca', label: 'Comarca' },
-                  { key: 'grossValue', label: 'Valor Repassado', align: 'right' },
-                  { key: 'irrfValue', label: 'IRRF', align: 'right' },
-                  { key: 'netValue', label: 'Valor Líquido', align: 'right' },
-                  { key: 'historyType', label: 'Histórico' },
-                  { key: 'date', label: 'Pagamento' },
-                ].map((col) => (
-                  <th 
-                    key={col.key}
-                    onClick={() => requestSort(col.key as keyof Payment)}
-                    className={`px-4 py-3 text-xs uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition select-none group ${col.align === 'right' ? 'text-right' : ''}`}
-                  >
-                    <div className={`flex items-center gap-1 ${col.align === 'right' ? 'justify-end' : ''}`}>
-                      {col.label}
-                      <ArrowUpDown size={12} className={`opacity-0 group-hover:opacity-50 transition ${sortConfig?.key === col.key ? 'text-blue-500 opacity-100' : ''}`} />
-                    </div>
-                  </th>
-                ))}
-                <th className="px-4 py-3 text-xs uppercase tracking-wider text-center print:hidden">Ações</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200">Status</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200">Cartório / Titular</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase border-r border-slate-200">Município</th>
+                <th colSpan={2} className="px-4 py-2 font-bold text-slate-600 text-[11px] uppercase text-center border-b border-r border-slate-200">Atos 1ª Via</th>
+                <th colSpan={2} className="px-4 py-2 font-bold text-slate-600 text-[11px] uppercase text-center border-b border-r border-slate-200">Atos 2ª Via</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase text-right border-r border-slate-200 bg-blue-50/30">Total Bruto</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-red-600 text-[11px] uppercase text-right border-r border-slate-200">IRPF</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-green-700 text-[11px] uppercase text-right border-r border-slate-200">Total Líquido</th>
+                <th rowSpan={2} className="px-4 py-4 font-bold text-slate-600 text-[11px] uppercase text-center">Ações</th>
+              </tr>
+              <tr className="bg-slate-50/50">
+                <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">Qtd</th>
+                <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">R$ 65,00</th>
+                <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">Qtd</th>
+                <th className="px-2 py-2 font-medium text-slate-500 text-[10px] text-center border-r border-slate-200">R$ 21,00</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredPayments.length > 0 ? (
-                filteredPayments.map((payment) => (
-                  <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 cursor-pointer" onClick={() => handleAuditClick(payment)} title="Clique para auditar">
-                       {getStatusBadge(payment.status, payment.pendingReason)}
+                filteredPayments.map(p => (
+                  <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-4 py-4">{getStatusBadge(p.status)}</td>
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-slate-800">{p.notaryName}</div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">{p.cpf}</div>
                     </td>
-                    <td className="px-4 py-3 font-medium text-slate-900">{payment.monthReference}</td>
-                    <td className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={payment.responsibleName}>{payment.responsibleName}</td>
-                    <td className="px-4 py-3 text-slate-600 font-mono text-xs">{payment.cpf}</td>
-                    <td className="px-4 py-3 text-slate-700 max-w-[200px] truncate" title={payment.notaryName}>{payment.notaryName}</td>
-                    <td className="px-4 py-3 text-slate-600">{payment.code}</td>
-                    <td className="px-4 py-3 text-slate-600">{payment.comarca}</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-700">
-                      {formatCurrency(payment.grossValue)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-red-600 text-xs">
-                      {formatCurrency(payment.irrfValue)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-green-700">
-                      {formatCurrency(payment.netValue)}
-                    </td>
-                    <td className="px-4 py-3">
-                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
-                         {payment.historyType}
-                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{formatDate(payment.date)}</td>
-                    <td className="px-4 py-3 text-center print:hidden">
-                       <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => handleDuplicateClick(payment)}
-                            className="text-slate-400 hover:text-green-600 transition" 
-                            title="Duplicar"
-                          >
-                            <Copy size={16} />
-                          </button>
-                          <button 
-                            onClick={() => handleAuditClick(payment)}
-                            className="text-slate-400 hover:text-blue-600 transition" 
-                            title="Auditar/Editar Status"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button className="text-slate-400 hover:text-red-600 transition" title="Excluir"><Trash2 size={16} /></button>
-                       </div>
+                    <td className="px-4 py-4 text-slate-600 font-medium">{p.municipality || p.comarca}</td>
+                    
+                    {/* Atos 1ª Via */}
+                    <td className="px-2 py-4 text-center text-slate-700 font-mono">{p.qtdVia1 || 0}</td>
+                    <td className="px-2 py-4 text-right text-slate-500 font-mono pr-4">{formatCurrency((p.qtdVia1 || 0) * 65)}</td>
+                    
+                    {/* Atos 2ª Via */}
+                    <td className="px-2 py-4 text-center text-slate-700 font-mono">{p.qtdVia2 || 0}</td>
+                    <td className="px-2 py-4 text-right text-slate-500 font-mono pr-4">{formatCurrency((p.qtdVia2 || 0) * 21)}</td>
+                    
+                    {/* Totais */}
+                    <td className="px-4 py-4 text-right font-bold text-slate-800 bg-blue-50/10 border-l border-slate-100">{formatCurrency(p.grossValue)}</td>
+                    <td className="px-4 py-4 text-right font-medium text-red-600">{formatCurrency(p.irrfValue)}</td>
+                    <td className="px-4 py-4 text-right font-black text-green-700">{formatCurrency(p.netValue)}</td>
+                    
+                    <td className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => handleAuditClick(p)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition" 
+                          title="Detalhes/Repasse"
+                        >
+                          <ListFilter size={16} />
+                        </button>
+                        <button 
+                          onClick={() => { setPaymentToDuplicate(p); setIsModalOpen(true); }}
+                          className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition"
+                        >
+                          <Copy size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={13} className="px-6 py-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center">
-                      <Search size={32} className="mb-2 opacity-50" />
-                      <p>Nenhum registro encontrado.</p>
+                  <td colSpan={11} className="py-20 text-center text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <AlertOctagon size={40} className="opacity-20" />
+                      <p className="font-medium">Nenhum pagamento encontrado para este filtro.</p>
                     </div>
                   </td>
                 </tr>
@@ -654,21 +300,41 @@ const PaymentTable: React.FC<PaymentTableProps> = ({ payments, notaries, onAddPa
           </table>
         </div>
         
-        {/* Footer/Pagination */}
-        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between print:hidden">
-          <div className="flex gap-2">
-             <button className="text-xs text-slate-500 hover:text-blue-600 flex items-center">
-               <ChevronLeft size={14} /> Recolher
-             </button>
-          </div>
-          
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-             {/* Footer Info removed to avoid duplication with global footer */}
+        {/* Footer Paginação Fictícia */}
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+          <div>Página 1 de 1</div>
+          <div className="flex gap-1">
+            <button className="p-1 px-2 border border-slate-300 rounded hover:bg-white disabled:opacity-30" disabled><ChevronLeft size={14}/></button>
+            <button className="p-1 px-2 border border-slate-300 rounded bg-white font-bold text-blue-600">1</button>
+            <button className="p-1 px-2 border border-slate-300 rounded hover:bg-white disabled:opacity-30" disabled><ChevronRight size={14}/></button>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+// Componentes Auxiliares
+const GenreTab: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
+  <button 
+    onClick={onClick}
+    className={`px-6 py-4 text-sm font-bold transition-all border-b-2 ${
+      active ? 'border-blue-600 text-blue-600 bg-blue-50/50' : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const SubTabItem: React.FC<{ label: string; active: boolean; onClick: () => void }> = ({ label, active, onClick }) => (
+  <button 
+    onClick={onClick}
+    className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+      active ? 'bg-slate-800 text-white shadow-md' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+    }`}
+  >
+    {label}
+  </button>
+);
 
 export default PaymentTable;

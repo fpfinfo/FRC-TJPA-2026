@@ -15,7 +15,16 @@ export interface Payment {
   netValue: number;
   historyType: 'AJUDA DE CUSTO' | 'DEA' | 'MESES ANTERIORES' | 'RENDA MINIMA' | 'REPASSE' | 'COMPLEMENTAÇÃO';
   status: 'PAGO' | 'PENDENTE' | 'EM ANDAMENTO';
-  pendingReason?: string; // Motivo da pendência (obrigatório se status for PENDENTE)
+  pendingReason?: string;
+  
+  // Novos campos para refatoração
+  qtdVia1?: number;
+  valVia1?: number;
+  qtdVia2?: number;
+  valVia2?: number;
+  loteType?: 'PRINCIPAL' | 'COMPLEMENTAR';
+  genre?: 'ATOS_GRATUITOS' | 'RENDA_MINIMA' | 'AJUDA_CUSTO';
+  municipality?: string;
 }
 
 export interface Notary {
@@ -28,13 +37,11 @@ export interface Notary {
   comarca: string;
   status: 'ATIVO' | 'INATIVO';
   address: string;
-  // New fields based on the form
   city?: string;
   state?: string;
   cep?: string;
   phone?: string;
   email?: string;
-  // Geo Data
   latitude?: number;
   longitude?: number;
 }

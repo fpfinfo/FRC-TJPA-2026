@@ -430,12 +430,6 @@ const InnerApp = () => {
                  <h3 className="text-xl font-semibold text-slate-800">Acesso Restrito</h3>
               </div>
             )}
-            
-            <footer className="mt-12 py-6 border-t border-slate-200 text-center print:hidden">
-              <p className="text-sm text-slate-500">
-                © 2026 TJPA - Fundo de Apoio ao Registro Civil By fpf.info
-              </p>
-            </footer>
           </div>
         </main>
       </div>

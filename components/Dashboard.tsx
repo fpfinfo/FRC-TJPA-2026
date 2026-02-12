@@ -8,8 +8,7 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  TooltipProps 
+  ResponsiveContainer
 } from 'recharts';
 import { TrendingUp, Landmark, FileCheck, DollarSign, Map as MapIcon, Calendar, BarChart3, AlertTriangle } from 'lucide-react';
 import GeoMap from './GeoMap';
@@ -40,11 +39,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
   const [timeRange, setTimeRange] = useState('6months');
+  // Define 'map' as the default active tab per latest UX requirements
   const [activeTab, setActiveTab] = useState<'analytics' | 'map'>('map');
   const [isLoading, setIsLoading] = useState(false);
 
   // Verifica se é um usuário comum (não admin) sem cartórios vinculados
-  // Assumimos que se a lista de notaries está vazia e não está carregando, há um problema de vínculo.
   const showAccessWarning = notaries.length === 0 && !isLoading;
 
   // Cálculo de Estatísticas Gerais
@@ -164,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
         )}
       </div>
 
-      {/* Tabs Navigation */}
+      {/* Tabs Navigation - ORDER: Map then Analytics */}
       <div className="border-b border-slate-200">
         <nav className="-mb-px flex space-x-8">
           <button
@@ -194,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({ payments, notaries = [] }) => {
         </nav>
       </div>
 
-      {/* Tab Content: Map */}
+      {/* Tab Content: Map (Default) */}
       {activeTab === 'map' && (
         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
           <div className="bg-white p-1 rounded-xl shadow-sm border border-slate-200 flex flex-col h-[600px]">
