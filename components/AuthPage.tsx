@@ -87,7 +87,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
               />
               <div className="h-10 w-px bg-amber-500/50"></div>
               <div>
-                <span className="font-black text-2xl tracking-tighter uppercase block leading-none">SISUP</span>
+                <span className="font-black text-2xl tracking-tighter uppercase block leading-none">FRC TJPA</span>
                 <span className="text-[10px] text-amber-500 font-bold tracking-[0.3em] uppercase">Gestão FRC 2026</span>
               </div>
             </div>
