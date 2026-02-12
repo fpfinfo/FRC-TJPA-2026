@@ -17,14 +17,17 @@ export interface Payment {
   status: 'PAGO' | 'PENDENTE' | 'EM ANDAMENTO';
   pendingReason?: string;
   
-  // Novos campos para refatoração
+  // Campos de Negócio TJPA
+  vinculo?: 'Titular' | 'Interino' | 'Interventor';
+  loteType?: 'PRINCIPAL' | 'COMPLEMENTAR';
+  actType?: 'NASCIMENTO' | 'CASAMENTO' | 'OBITO';
   qtdVia1?: number;
   valVia1?: number;
   qtdVia2?: number;
   valVia2?: number;
-  loteType?: 'PRINCIPAL' | 'COMPLEMENTAR';
   genre?: 'ATOS_GRATUITOS' | 'RENDA_MINIMA' | 'AJUDA_CUSTO';
   municipality?: string;
+  dataVinculo?: string;
 }
 
 export interface Notary {
@@ -44,6 +47,7 @@ export interface Notary {
   email?: string;
   latitude?: number;
   longitude?: number;
+  vinculoPadrao?: 'Titular' | 'Interino' | 'Interventor';
 }
 
 export interface IRRFBracket {
